@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class BandicamCommand extends ImageCommand {
+class BandicamCommand extends MediaCommand {
   params = {
     water: "assets/images/bandicam.png",
     gravity: 2,

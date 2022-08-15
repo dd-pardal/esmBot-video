@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class GlobeCommand extends ImageCommand {
+class GlobeCommand extends MediaCommand {
   static description = "Spins an image";
   static aliases = ["sphere"];
 

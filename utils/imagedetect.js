@@ -36,7 +36,7 @@ const imageFormats = ["image/jpeg", "image/png", "image/webp", "image/gif", "lar
 const videoFormats = ["video/mp4", "video/webm", "video/mov"];
 
 // gets the proper image paths
-const getImage = async (image, image2, video, extraReturnTypes, gifv = false, type = null, link = false) => {
+const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, type = null, link = false) => {
   try {
     const fileNameSplit = new URL(image).pathname.split("/");
     const fileName = fileNameSplit[fileNameSplit.length - 1];
@@ -78,14 +78,24 @@ const getImage = async (image, image2, video, extraReturnTypes, gifv = false, ty
         payload.path = `https://thumbs.gfycat.com/${image.split("/").pop().split(".mp4")[0]}-size_restricted.gif`;
       }
       payload.type = "image/gif";
-    } else if (video) {
-      payload.type = type ?? await getType(payload.path, extraReturnTypes);
-      if (!payload.type || (!videoFormats.includes(payload.type) && !imageFormats.includes(payload.type))) return;
+      return payload;
     } else {
+      // TODO: Ugly hack
+      if (video && image.endsWith(".mov")) {
+        payload.mediaType = "video";
+        return payload;
+      }
+
       payload.type = type ?? await getType(payload.path, extraReturnTypes);
-      if (!payload.type || !imageFormats.includes(payload.type)) return;
+      if (true && imageFormats.includes(payload.type)) {
+        payload.mediaType = "image";
+        return payload;
+      }
+      if (video && videoFormats.includes(payload.type)) {
+        payload.mediaType = "video";
+        return payload;
+      }
     }
-    return payload;
   } catch (error) {
     if (error.name === "AbortError") {
       throw Error("Timed out");
@@ -95,7 +105,7 @@ const getImage = async (image, image2, video, extraReturnTypes, gifv = false, ty
   }
 };
 
-const checkImages = async (message, extraReturnTypes, video, sticker) => {
+const checkMessageForMedia = async (message, extraReturnTypes, video, sticker) => {
   let type;
   if (sticker && message.stickerItems) {
     type = message.stickerItems[0];
@@ -104,21 +114,21 @@ const checkImages = async (message, extraReturnTypes, video, sticker) => {
     if (message.embeds.length !== 0) {
       // embeds can vary in types, we check for tenor gifs first
       if (message.embeds[0].type === "gifv") {
-        type = await getImage(message.embeds[0].video.url, message.embeds[0].url, video, extraReturnTypes, true);
+        type = await getMedia(message.embeds[0].video.url, message.embeds[0].url, video, extraReturnTypes, true);
         // then we check for other image types
       } else if ((message.embeds[0].type === "video" || message.embeds[0].type === "image") && message.embeds[0].thumbnail) {
-        type = await getImage(message.embeds[0].thumbnail.proxy_url, message.embeds[0].thumbnail.url, video, extraReturnTypes);
+        type = await getMedia(message.embeds[0].thumbnail.proxy_url, message.embeds[0].thumbnail.url, video, extraReturnTypes);
         // finally we check both possible image fields for "generic" embeds
       } else if (message.embeds[0].type === "rich" || message.embeds[0].type === "article") {
         if (message.embeds[0].thumbnail) {
-          type = await getImage(message.embeds[0].thumbnail.proxy_url, message.embeds[0].thumbnail.url, video, extraReturnTypes);
+          type = await getMedia(message.embeds[0].thumbnail.proxy_url, message.embeds[0].thumbnail.url, video, extraReturnTypes);
         } else if (message.embeds[0].image) {
-          type = await getImage(message.embeds[0].image.proxy_url, message.embeds[0].image.url, video, extraReturnTypes);
+          type = await getMedia(message.embeds[0].image.proxy_url, message.embeds[0].image.url, video, extraReturnTypes);
         }
       }
       // then check the attachments
     } else if (message.attachments.length !== 0 && message.attachments[0].width) {
-      type = await getImage(message.attachments[0].proxy_url, message.attachments[0].url, video);
+      type = await getMedia(message.attachments[0].proxy_url, message.attachments[0].url, video);
     }
   }
   // if the return value exists then return it
@@ -133,7 +143,7 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
     if (options) {
       if (options.image) {
         const attachment = interaction.data.resolved.attachments[options.image];
-        const result = await getImage(attachment.proxy_url, attachment.url, video, attachment.content_type);
+        const result = await getMedia(attachment.proxy_url, attachment.url, video, attachment.content_type);
         if (result !== false) return result;
       } else if (options.link) {
         const result = await getImage(options.link, options.link, video, extraReturnTypes, false, null, true);
@@ -145,19 +155,19 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
     if (cmdMessage.messageReference) {
       const replyMessage = await client.getMessage(cmdMessage.messageReference.channelID, cmdMessage.messageReference.messageID).catch(() => undefined);
       if (replyMessage) {
-        const replyResult = await checkImages(replyMessage, extraReturnTypes, video, sticker);
+        const replyResult = await checkMessageForMedia(replyMessage, extraReturnTypes, video, sticker);
         if (replyResult !== false) return replyResult;
       }
     }
     // then we check the current message
-    const result = await checkImages(cmdMessage, extraReturnTypes, video, sticker);
+    const result = await checkMessageForMedia(cmdMessage, extraReturnTypes, video, sticker);
     if (result !== false) return result;
   }
   // if there aren't any replies or interaction attachments then iterate over the last few messages in the channel
   const messages = await client.getMessages((interaction ? interaction : cmdMessage).channel.id);
   // iterate over each message
   for (const message of messages) {
-    const result = await checkImages(message, extraReturnTypes, video, sticker);
+    const result = await checkMessageForMedia(message, extraReturnTypes, video, sticker);
     if (result === false) {
       continue;
     } else {

@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class KineMasterCommand extends ImageCommand {
+class KineMasterCommand extends MediaCommand {
   params = {
     water: "assets/images/kinemaster.png",
     gravity: 3,

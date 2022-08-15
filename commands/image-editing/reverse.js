@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class ReverseCommand extends ImageCommand {
+class ReverseCommand extends MediaCommand {
   static description = "Reverses an image sequence";
   static aliases = ["backwards"];
 

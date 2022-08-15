@@ -1,9 +1,9 @@
 import fs from "fs";
 import emojiRegex from "emoji-regex";
 import emoji from "node-emoji";
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class FlagCommand extends ImageCommand {
+class FlagCommand extends MediaCommand {
   flagPath = "";
 
   async criteria() {

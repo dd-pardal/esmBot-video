@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class ImplodeCommand extends ImageCommand {
+class ImplodeCommand extends MediaCommand {
   params = {
     amount: 1
   };

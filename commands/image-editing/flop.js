@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class FlopCommand extends ImageCommand {
+class FlopCommand extends MediaCommand {
   params = {
     flop: true
   };

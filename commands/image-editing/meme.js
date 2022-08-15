@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class MemeCommand extends ImageCommand {
+class MemeCommand extends MediaCommand {
   params(url) {
     const newArgs = this.options.text ?? this.args.filter(item => !item.includes(url)).join(" ");
     const [topText, bottomText] = newArgs.split(/(?<!\\),/).map(elem => elem.trim());

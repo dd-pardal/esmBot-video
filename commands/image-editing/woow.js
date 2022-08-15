@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class WooWCommand extends ImageCommand {
+class WooWCommand extends MediaCommand {
   params = {
     vertical: true,
     first: true

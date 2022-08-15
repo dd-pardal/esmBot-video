@@ -9,7 +9,7 @@
     "node": ">=15"
   },
   "scripts": {
-    "build": "cmake-js compile",
+    "build": "cd natives/processing/ && sh ./build.sh && cd ../image/ && cmake-js compile && cd ../ffmpeg/ && echo 'Running configure. This might take a while...' && sh ./configure --enable-libvpx --enable-libopus --enable-openssl --assert-level=1 && make -j $(grep -c ^processor /proc/cpuinfo)",
     "docker:build": "DOCKER_BUILDKIT=1 docker build -t esmbot .",
     "docker:run-bot": "docker run --rm --network=host esmbot",
     "docker:run-api": "docker run --rm --network=host esmbot-api",

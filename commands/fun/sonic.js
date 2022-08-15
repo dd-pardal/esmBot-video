@@ -1,7 +1,7 @@
 //import wrap from "../../utils/wrap.js";
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class SonicCommand extends ImageCommand {
+class SonicCommand extends MediaCommand {
   params() {
     const cleanedMessage = (this.options.text ?? this.args.join(" ")).replaceAll("&", "&amp;").replaceAll(">", "&gt;").replaceAll("<", "&lt;").replaceAll("\"", "&quot;").replaceAll("'", "&apos;").replaceAll("\\n", "\n");
     return {

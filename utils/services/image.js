@@ -11,7 +11,7 @@ import EventEmitter from "events";
 
 // only requiring this to work around an issue regarding worker threads
 const nodeRequire = createRequire(import.meta.url);
-nodeRequire(`../../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
+nodeRequire(`../../natives/image/build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
 
 import ImageConnection from "../imageConnection.js";
 

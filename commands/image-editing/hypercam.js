@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class HypercamCommand extends ImageCommand {
+class HypercamCommand extends MediaCommand {
   params = {
     water: "assets/images/hypercam.png",
     gravity: 1,

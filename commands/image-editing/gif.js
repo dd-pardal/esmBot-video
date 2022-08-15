@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class GIFCommand extends ImageCommand {
+class GIFCommand extends MediaCommand {
   static description = "Converts an image into a GIF";
   static aliases = ["gif", "getgif", "togif", "tgif", "gifify"];
 

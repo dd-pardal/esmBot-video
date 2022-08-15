@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 
 const nodeRequire = createRequire(import.meta.url);
 
-const relPath = `../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`;
+const relPath = `../natives/image/build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`;
 const magick = nodeRequire(relPath);
 
 const enumMap = {

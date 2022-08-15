@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class HaaHCommand extends ImageCommand {
+class HaaHCommand extends MediaCommand {
   params = {
     first: true
   };

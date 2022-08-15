@@ -10,9 +10,9 @@ export const connections = new Map();
 
 export const servers = JSON.parse(fs.readFileSync(new URL("../config/servers.json", import.meta.url), { encoding: "utf8" })).image;
 
-export async function getType(image, extraReturnTypes) {
-  if (!image.startsWith("http")) {
-    const imageType = await fileTypeFromFile(image);
+export async function getType(path, extraReturnTypes) {
+  if (!path.startsWith("http")) {
+    const imageType = await fileTypeFromFile(path);
     if (imageType && formats.includes(imageType.mime)) {
       return imageType.mime;
     }
@@ -24,7 +24,7 @@ export async function getType(image, extraReturnTypes) {
     controller.abort();
   }, 25000);
   try {
-    const imageRequest = await fetch(image, {
+    const imageRequest = await fetch(path, {
       signal: controller.signal, headers: {
         "Range": "bytes=0-1023"
       }

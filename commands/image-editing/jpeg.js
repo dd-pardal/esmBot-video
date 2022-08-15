@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class JPEGCommand extends ImageCommand {
+class JPEGCommand extends MediaCommand {
   params() {
     const quality = parseInt(this.options.quality ?? this.args[0]);
     return {

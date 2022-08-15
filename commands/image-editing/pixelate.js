@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class PixelateCommand extends ImageCommand {
+class PixelateCommand extends MediaCommand {
   static description = "Pixelates an image";
   static aliases = ["pixel", "small"];
 

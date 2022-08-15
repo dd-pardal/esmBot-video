@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class ScottCommand extends ImageCommand {
+class ScottCommand extends MediaCommand {
   static description = "Makes Scott the Woz show off an image";
   static aliases = ["woz", "tv", "porn"];
 

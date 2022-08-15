@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class UncaptionCommand extends ImageCommand {
+class UncaptionCommand extends MediaCommand {
   params() {
     const tolerance = parseFloat(this.options.tolerance);
     return {

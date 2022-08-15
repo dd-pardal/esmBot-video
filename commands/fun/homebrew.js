@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class HomebrewCommand extends ImageCommand {
+class HomebrewCommand extends MediaCommand {
   params() {
     return {
       caption: (this.options.text ?? this.args.join(" ")).toLowerCase().replaceAll("\n", " ")
