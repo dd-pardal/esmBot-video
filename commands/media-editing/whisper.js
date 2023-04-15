@@ -1,7 +1,7 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
-class WhisperCommand extends ImageCommand {
+class WhisperCommand extends MediaCommand {
   params(url) {
     const newArgs = this.options.text ?? this.args.filter(item => !item.includes(url)).join(" ");
     return {

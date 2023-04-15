@@ -12,7 +12,7 @@ commands/
     > help.js
     > ping.js
     > ...
-  - image-editing
+  - media-editing
     > caption.js
     > speed.js
     > ...

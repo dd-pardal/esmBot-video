@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class FunkyCommand extends ImageCommand {
+class FunkyCommand extends MediaCommand {
   params = {
     water: "assets/images/funky.png",
     gravity: 3,

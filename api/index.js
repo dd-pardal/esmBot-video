@@ -11,7 +11,7 @@ import { createRequire } from "module";
 import EventEmitter from "events";
 
 const nodeRequire = createRequire(import.meta.url);
-const img = nodeRequire(`../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
+const img = nodeRequire(`../natives/image/build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
 
 const Rerror = 0x01;
 const Tqueue = 0x02;

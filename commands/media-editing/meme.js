@@ -1,7 +1,7 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
-class MemeCommand extends ImageCommand {
+class MemeCommand extends MediaCommand {
   async criteria(text, url) {
     const [topText, bottomText] = text.replaceAll(url, "").split(/(?<!\\),/).map(elem => elem.trim());
     if (topText === "" && bottomText === "") {
@@ -18,6 +18,22 @@ class MemeCommand extends ImageCommand {
       top: cleanMessage(this.message ?? this.interaction, this.options.case ? topText : topText.toUpperCase()),
       bottom: bottomText ? cleanMessage(this.message ?? this.interaction, this.options.case ? bottomText : bottomText.toUpperCase()) : "",
       font: typeof this.options.font === "string" && this.constructor.allowedFonts.includes(this.options.font.toLowerCase()) ? this.options.font.toLowerCase() : "impact"
+    };
+  }
+
+  ffmpegParams(url) {
+    const params = this.params(url);
+    return {
+      filterGraph: `\
+split
+[input1][input2];
+
+[input1]
+ebmemeref=top=\\''${params.top}'\\':bottom=\\''${params.bottom}'\\':font=\\''${params.font}'\\'
+[overlay];
+
+[input2][overlay]
+overlay=shortest=1`
     };
   }
 
@@ -49,6 +65,8 @@ class MemeCommand extends ImageCommand {
   static noText = "You need to provide some text to generate a meme!";
   static noImage = "You need to provide an image/GIF to generate a meme!";
   static command = "meme";
+
+  static acceptsVideo = true;
 }
 
 export default MemeCommand;

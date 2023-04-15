@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class UnfreezeCommand extends ImageCommand {
+class UnfreezeCommand extends MediaCommand {
   params = {
     loop: true
   };

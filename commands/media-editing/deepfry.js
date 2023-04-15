@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class DeepfryCommand extends ImageCommand {
+class DeepfryCommand extends MediaCommand {
   static description = "Deep-fries an image";
   static aliases = ["fry", "jpeg2", "nuke", "df"];
 

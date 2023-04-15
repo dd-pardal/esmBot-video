@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class NineGagCommand extends ImageCommand {
+class NineGagCommand extends MediaCommand {
   params = {
     water: "assets/images/9gag.png",
     gravity: 6

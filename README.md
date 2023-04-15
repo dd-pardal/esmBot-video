@@ -1,3 +1,9 @@
+# Video Support
+
+This is an experimental fork of esmBot with video support, powered by FFmpeg.
+
+If you want to try this out, follow te instructions in `docs/setup.md`. If you have already esmBot set up, you'll probably just need to install the required libraries (`libvpx-dev libopus-dev libssl-dev` if you're on Debian/Ubuntu), `git clone --recurse-submodules --depth 10` this repo, copy the `.env` file and run `pnpm run build`. The script will build everything, including FFmpeg.
+
 # <img src="https://github.com/esmBot/esmBot/raw/master/docs/assets/esmbot.png" width="128"> esmBot
 [![esmBot Support](https://discordapp.com/api/guilds/592399417676529688/embed.png)](https://discord.gg/esmbot) ![GitHub license](https://img.shields.io/github/license/esmBot/esmBot.svg)
 

@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class FreezeCommand extends ImageCommand {
+class FreezeCommand extends MediaCommand {
   params() {
     const frameCount = parseInt(this.options.endframe ?? this.args[0]);
     return {

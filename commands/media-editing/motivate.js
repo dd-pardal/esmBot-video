@@ -1,7 +1,7 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
-class MotivateCommand extends ImageCommand {
+class MotivateCommand extends MediaCommand {
   async criteria(text, url) {
     const [topText, bottomText] = text.replaceAll(url, "").split(/(?<!\\),/).map(elem => elem.trim());
     if (topText === "" && bottomText === "") {

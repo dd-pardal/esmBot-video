@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class ExplodeCommand extends ImageCommand {
+class ExplodeCommand extends MediaCommand {
   static description = "Explodes an image";
   static aliases = ["exp"];
 

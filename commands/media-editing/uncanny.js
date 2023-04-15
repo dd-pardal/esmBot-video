@@ -1,4 +1,4 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 import { random, cleanMessage } from "../../utils/misc.js";
 import { readdirSync } from "fs";
 import { resolve, dirname } from "path";
@@ -10,7 +10,7 @@ const names = readdirSync(resolve(dirname(fileURLToPath(import.meta.url)), "../.
   return val.split(".")[0];
 });
 
-class UncannyCommand extends ImageCommand {
+class UncannyCommand extends MediaCommand {
   params(url, name = "unknown") {
     const newArgs = this.options.text ?? this.args.join(" ");
     // eslint-disable-next-line prefer-const

@@ -1,5 +1,5 @@
 import { request } from "undici";
-import { getType } from "./image.js";
+import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
 
 const tenorURLs = [
   "tenor.com",
@@ -28,15 +28,70 @@ const gfycatURLs = [
   "www.gfycat.com",
   "thumbs.gfycat.com",
   "giant.gfycat.com"
-];
+]; //lol!
 
 const combined = [...tenorURLs, ...giphyURLs, ...giphyMediaURLs, ...imgurURLs, ...gfycatURLs];
 
 const imageFormats = ["image/jpeg", "image/png", "image/webp", "image/gif", "large"];
-const videoFormats = ["video/mp4", "video/webm", "video/mov"];
+
+export async function getType(image, extraReturnTypes, video) {
+  if (!(image.startsWith("http://") || image.startsWith("https://"))) {
+    const imageType = await fileTypeFromFile(image);
+    if (imageType && formats.includes(imageType.mime)) {
+      return imageType.mime;
+    }
+    return undefined;
+  }
+  let type;
+  const controller = new AbortController();
+  let timeout = setTimeout(() => {
+    controller.abort();
+  }, 3000);
+  try {
+    const imageRequest = await request(image, {
+      signal: controller.signal,
+      method: "HEAD"
+    });
+    clearTimeout(timeout);
+    const size = imageRequest.headers["content-range"] ? imageRequest.headers["content-range"].split("/")[1] : imageRequest.headers["content-length"];
+    if (parseInt(size) > 26214400 && extraReturnTypes && !video) { // 25 MB
+      type = "large";
+      return type;
+    }
+    const typeHeader = imageRequest.headers["content-type"];
+    if (typeHeader) {
+      type = typeHeader;
+    } else {
+      timeout = setTimeout(() => {
+        controller.abort();
+      }, 3000);
+      const bufRequest = await request(image, {
+        signal: controller.signal,
+        headers: {
+          range: "bytes=0-1023"
+        }
+      });
+      clearTimeout(timeout);
+      const imageBuffer = await bufRequest.body.arrayBuffer();
+      const imageType = await fileTypeFromBuffer(imageBuffer);
+      if (imageType) {
+        type = imageType.mime;
+      }
+    }
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw Error("Media type detection timed out");
+    } else {
+      throw error;
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+  return type;
+}
 
 // gets the proper image paths
-const getImage = async (image, image2, video, extraReturnTypes, gifv = false, type = null, link = false) => {
+const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, type = null, link = false) => {
   try {
     const fileNameSplit = new URL(image).pathname.split("/");
     const fileName = fileNameSplit[fileNameSplit.length - 1];
@@ -48,6 +103,7 @@ const getImage = async (image, image2, video, extraReturnTypes, gifv = false, ty
     };
     const host = new URL(image2).host;
     if (gifv || (link && combined.includes(host))) {
+      payload.mediaType = "image";
       if (tenorURLs.includes(host)) {
         // Tenor doesn't let us access a raw GIF without going through their API,
         // so we use that if there's a key in the config
@@ -92,14 +148,19 @@ const getImage = async (image, image2, video, extraReturnTypes, gifv = false, ty
         }
       }
       payload.type = "image/gif";
-    } else if (video) {
-      payload.type = type ?? await getType(payload.path, extraReturnTypes);
-      if (!payload.type || (!videoFormats.includes(payload.type) && !imageFormats.includes(payload.type))) return;
+      return payload;
     } else {
-      payload.type = type ?? await getType(payload.path, extraReturnTypes);
-      if (!payload.type || !imageFormats.includes(payload.type)) return;
+      payload.type = type ?? await getType(payload.path, extraReturnTypes, video);
+      if (payload.type) {
+        if (payload.type.startsWith("video/")) {
+          payload.mediaType = "video";
+          return payload;
+        } else if (imageFormats.includes(payload.type)) {
+          payload.mediaType = "image";
+          return payload;
+        }
+      }
     }
-    return payload;
   } catch (error) {
     if (error.name === "AbortError") {
       throw Error("Timed out");
@@ -109,7 +170,7 @@ const getImage = async (image, image2, video, extraReturnTypes, gifv = false, ty
   }
 };
 
-const checkImages = async (message, extraReturnTypes, video, sticker) => {
+const checkMessageForMedia = async (message, extraReturnTypes, video, sticker) => {
   let type;
   if (sticker && message.stickerItems) {
     type = message.stickerItems[0];
@@ -118,21 +179,23 @@ const checkImages = async (message, extraReturnTypes, video, sticker) => {
     if (message.embeds.length !== 0) {
       // embeds can vary in types, we check for tenor gifs first
       if (message.embeds[0].type === "gifv") {
-        type = await getImage(message.embeds[0].video.url, message.embeds[0].url, video, extraReturnTypes, true);
+        type = await getMedia(message.embeds[0].video.url, message.embeds[0].url, video, extraReturnTypes, true);
         // then we check for other image types
+      } else if (message.embeds[0].type === "video" && video) {
+        type = await getMedia(message.embeds[0].video.proxyURL, message.embeds[0].url, video, extraReturnTypes);
       } else if ((message.embeds[0].type === "video" || message.embeds[0].type === "image") && message.embeds[0].thumbnail) {
-        type = await getImage(message.embeds[0].thumbnail.proxyURL, message.embeds[0].thumbnail.url, video, extraReturnTypes);
+        type = await getMedia(message.embeds[0].thumbnail.proxyURL, message.embeds[0].thumbnail.url, video, extraReturnTypes);
         // finally we check both possible image fields for "generic" embeds
       } else if (message.embeds[0].type === "rich" || message.embeds[0].type === "article") {
         if (message.embeds[0].thumbnail) {
-          type = await getImage(message.embeds[0].thumbnail.proxyURL, message.embeds[0].thumbnail.url, video, extraReturnTypes);
+          type = await getMedia(message.embeds[0].thumbnail.proxyURL, message.embeds[0].thumbnail.url, video, extraReturnTypes);
         } else if (message.embeds[0].image) {
-          type = await getImage(message.embeds[0].image.proxyURL, message.embeds[0].image.url, video, extraReturnTypes);
+          type = await getMedia(message.embeds[0].image.proxyURL, message.embeds[0].image.url, video, extraReturnTypes);
         }
       }
       // then check the attachments
     } else if (message.attachments.size !== 0 && message.attachments.first().width) {
-      type = await getImage(message.attachments.first().proxyURL, message.attachments.first().url, video);
+      type = await getMedia(message.attachments.first().proxyURL, message.attachments.first().url, video);
     }
   }
   // if the return value exists then return it
@@ -147,10 +210,10 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
     if (options) {
       if (options.image) {
         const attachment = interaction.data.resolved.attachments.get(options.image);
-        const result = await getImage(attachment.proxyURL, attachment.url, video, attachment.contentType);
+        const result = await getMedia(attachment.proxyURL, attachment.url, video, extraReturnTypes, false, attachment.contentType);
         if (result !== false) return result;
       } else if (options.link) {
-        const result = await getImage(options.link, options.link, video, extraReturnTypes, false, null, true);
+        const result = await getMedia(options.link, options.link, video, extraReturnTypes, false, null, true);
         if (result !== false) return result;
       }
     }
@@ -160,12 +223,12 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
     if (cmdMessage.messageReference && !singleMessage) {
       const replyMessage = await client.rest.channels.getMessage(cmdMessage.messageReference.channelID, cmdMessage.messageReference.messageID).catch(() => undefined);
       if (replyMessage) {
-        const replyResult = await checkImages(replyMessage, extraReturnTypes, video, sticker);
+        const replyResult = await checkMessageForMedia(replyMessage, extraReturnTypes, video, sticker);
         if (replyResult !== false) return replyResult;
       }
     }
     // then we check the current message
-    const result = await checkImages(cmdMessage, extraReturnTypes, video, sticker);
+    const result = await checkMessageForMedia(cmdMessage, extraReturnTypes, video, sticker);
     if (result !== false) return result;
   }
   if (!singleMessage) {
@@ -175,7 +238,7 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
       const messages = await channel.getMessages();
       // iterate over each message
       for (const message of messages) {
-        const result = await checkImages(message, extraReturnTypes, video, sticker);
+        const result = await checkMessageForMedia(message, extraReturnTypes, video, sticker);
         if (result === false) {
           continue;
         } else {

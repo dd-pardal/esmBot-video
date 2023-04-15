@@ -1,13 +1,26 @@
 import Command from "./command.js";
-import imageDetect from "../utils/imagedetect.js";
+import mediaDetect from "../utils/media-detection.js";
 import { runImageJob } from "../utils/image.js";
 import { runningCommands } from "../utils/collections.js";
 import { readFileSync } from "fs";
 const { emotes } = JSON.parse(readFileSync(new URL("../config/messages.json", import.meta.url)));
 import { random } from "../utils/misc.js";
 import { selectedImages } from "../utils/collections.js";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { readFile, rm } from "fs/promises";
+import ConcurrencyLimiter from "../utils/concurrency-limiter.js";
 
-class ImageCommand extends Command {
+const execFileP = promisify(execFile);
+
+export const ffmpegConfig = {
+  // Pixel formats supported by the encoder, separated by "|"
+  pixelFormats: "yuv420p|yuva420p"
+};
+
+const limiter = new ConcurrencyLimiter(Number.parseInt(process.env.MEDIA_CONCURRENCY_LIMIT));
+
+class MediaCommand extends Command {
   async criteria() {
     return true;
   }
@@ -30,29 +43,25 @@ class ImageCommand extends Command {
       },
       id: (this.interaction ?? this.message).id
     };
+    let media;
 
     if (this.type === "application") await this.acknowledge();
 
     if (this.constructor.requiresImage) {
       try {
         const selection = selectedImages.get(this.author.id);
-        const image = selection ?? await imageDetect(this.client, this.message, this.interaction, this.options, true);
+        media = selection ?? await mediaDetect(this.client, this.message, this.interaction, this.options, true, true);
         if (selection) selectedImages.delete(this.author.id);
-        if (image === undefined) {
+        if (media === undefined) {
           runningCommands.delete(this.author.id);
           return `${this.constructor.noImage} (Tip: try right-clicking/holding on a message and press Apps -> Select Image, then try again.)`;
-        } else if (image.type === "large") {
+        } else if (media.type === "large") {
           runningCommands.delete(this.author.id);
-          return "That image is too large (>= 25MB)! Try using a smaller image.";
-        } else if (image.type === "tenorlimit") {
+          return "That file is too large (>= 25MB)! Try using a smaller file.";
+        } else if (media.type === "tenorlimit") {
           runningCommands.delete(this.author.id);
           return "I've been rate-limited by Tenor. Please try uploading your GIF elsewhere.";
         }
-        imageParams.path = image.path;
-        imageParams.params.type = image.type;
-        imageParams.url = image.url; // technically not required but can be useful for text filtering
-        imageParams.name = image.name;
-        if (this.constructor.requiresGIF) imageParams.onlyGIF = true;
       } catch (e) {
         runningCommands.delete(this.author.id);
         throw e;
@@ -61,46 +70,100 @@ class ImageCommand extends Command {
 
     if (this.constructor.requiresText) {
       const text = this.options.text ?? this.args.join(" ").trim();
-      if (text.length === 0 || !await this.criteria(text, imageParams.url)) {
+      if (text.length === 0 || !await this.criteria(text, media.url)) {
         runningCommands.delete(this.author.id);
         return this.constructor.noText;
       }
     }
 
-    if (typeof this.params === "function") {
-      Object.assign(imageParams.params, this.params(imageParams.url, imageParams.name));
-    } else if (typeof this.params === "object") {
-      Object.assign(imageParams.params, this.params);
+    if (media.mediaType === "video" && !this.constructor.acceptsVideo) {
+      runningCommands.delete(this.author.id);
+      return `This command only supports ${this.constructor.requiresGIF ? "" : "images and "}GIFs.`;
     }
 
     let status;
-    if (imageParams.params.type === "image/gif" && this.type === "classic") {
+    if ((media.mediaType === "video" || media.type === "image/gif") && this.type === "classic") {
       status = await this.processMessage(this.message.channel ?? await this.client.rest.channels.get(this.message.channelID));
     }
 
-    try {
-      const { buffer, type } = await runImageJob(imageParams);
-      if (type === "nogif" && this.constructor.requiresGIF) {
-        return "That isn't a GIF!";
+    return limiter.runWhenFree(async () => {
+      if (this.constructor.ffmpegOnly || media.mediaType === "video") {
+        const outputFilename = `/tmp/esmBot-${Math.random().toString(36).substring(2, 15)}.webm`;
+        try {
+          const params = this.ffmpegParams(media.url);
+          // TODO: Stream the data from FFmpeg directly to Discord and to a file in TEMPDIR. If
+          // there is an error, abort the request and remove the file. If the request body exceeds
+          // 8MiB, abort the request and, when processing has finished, send the embed with the
+          // link to TMP_DOMAIN and keep the file. If there is no error and the request doesn't
+          // exceed 8MiB, remove the file.
+          const output = await execFileP("ffmpeg/ffmpeg", [
+            // Global options
+            "-y", "-nostats",
+            // Input
+            "-i", media.url,
+            // Filter
+            "-vf", `fps=25, scale='min(${process.env.MAX_VIDEO_DIMENSIONS},iw)':'min(${process.env.MAX_VIDEO_DIMENSIONS},ih)':force_original_aspect_ratio=decrease:sws_flags=fast_bilinear, ${params.filterGraph}, scale='min(${process.env.MAX_VIDEO_DIMENSIONS},iw)':'min(${process.env.MAX_VIDEO_DIMENSIONS},ih)':force_original_aspect_ratio=decrease:sws_flags=fast_bilinear`,
+            // Video encoding
+            "-c:v", "libvpx", "-minrate", "500k", "-b:v", "2000k", "-maxrate", "5000k", "-cpu-used", "5", "-auto-alt-ref", "0",
+            // Audio encoding
+            "-c:a", "libopus", "-b:a", "64000",
+            // Output
+            "-fs", process.env.MAX_VIDEO_SIZE, "-f", "webm", outputFilename,
+          ], {
+            // TODO: Send a SIGKILL some seconds after the timeout in case FFmpeg hangs
+            timeout: Number.parseInt(process.env.VIDEO_SOFT_TIMEOUT)
+          });
+          return {
+            contents: await readFile(outputFilename),
+            name: `${this.constructor.command}.webm`
+          }
+        } finally {
+          rm(outputFilename).catch(() => {});
+          try {
+            if (status) await status.delete();
+          } catch {
+            // no-op
+          }
+          runningCommands.delete(this.author.id);
+        }
+      } else {
+        imageParams.path = media.path;
+        imageParams.params.type = media.type;
+        imageParams.url = media.url; // technically not required but can be useful for text filtering
+        imageParams.name = media.name;
+        if (this.constructor.requiresGIF) imageParams.onlyGIF = true;
+
+        if (typeof this.params === "function") {
+          Object.assign(imageParams.params, this.params(imageParams.url, imageParams.name));
+        } else if (typeof this.params === "object") {
+          Object.assign(imageParams.params, this.params);
+        }
+
+        try {
+          const { buffer, type } = await runImageJob(imageParams);
+          if (type === "nogif" && this.constructor.requiresGIF) {
+            return "That isn't a GIF!";
+          }
+          this.success = true;
+          return {
+            contents: buffer,
+            name: `${this.constructor.command}.${type}`
+          };
+        } catch (e) {
+          if (e === "Request ended prematurely due to a closed connection") return "This image job couldn't be completed because the server it was running on went down. Try running your command again.";
+          if (e === "Job timed out" || e === "Timeout") return "The image is taking too long to process (>=15 minutes), so the job was cancelled. Try using a smaller image.";
+          if (e === "No available servers") return "I can't seem to contact the image servers, they might be down or still trying to start up. Please wait a little bit.";
+          throw e;
+        } finally {
+          try {
+            if (status) await status.delete();
+          } catch {
+            // no-op
+          }
+          runningCommands.delete(this.author.id);
+        }
       }
-      this.success = true;
-      return {
-        contents: buffer,
-        name: `${this.constructor.command}.${type}`
-      };
-    } catch (e) {
-      if (e === "Request ended prematurely due to a closed connection") return "This image job couldn't be completed because the server it was running on went down. Try running your command again.";
-      if (e === "Job timed out" || e === "Timeout") return "The image is taking too long to process (>=15 minutes), so the job was cancelled. Try using a smaller image.";
-      if (e === "No available servers") return "I can't seem to contact the image servers, they might be down or still trying to start up. Please wait a little bit.";
-      throw e;
-    } finally {
-      try {
-        if (status) await status.delete();
-      } catch {
-        // no-op
-      }
-      runningCommands.delete(this.author.id);
-    }
+    });
 
   }
 
@@ -122,19 +185,19 @@ class ImageCommand extends Command {
     }
     if (this.requiresImage) {
       this.flags.push({
-        name: "image",
+        name: this.acceptsVideo ? "media" : "image",
         type: 11,
-        description: "An image/GIF attachment"
+        description: `An image/GIF${this.acceptsVideo ? "/video" : ""} attachment`
       }, {
         name: "link",
         type: 3,
-        description: "An image/GIF URL"
+        description: `An image/GIF${this.acceptsVideo ? "/video" : ""} URL`
       });
     }
     this.flags.push({
       name: "togif",
       type: 5,
-      description: "Force GIF output"
+      description: "Force GIF output if the input is an image"
     });
     return this;
   }
@@ -145,9 +208,11 @@ class ImageCommand extends Command {
   static requiresText = false;
   static textOptional = false;
   static requiresGIF = false;
+  static acceptsVideo = false;
+  static ffmpegOnly = false;
   static noImage = "You need to provide an image/GIF!";
   static noText = "You need to provide some text!";
   static command = "";
 }
 
-export default ImageCommand;
+export default MediaCommand;

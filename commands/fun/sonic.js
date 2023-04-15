@@ -1,8 +1,8 @@
 //import wrap from "../../utils/wrap.js";
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
-class SonicCommand extends ImageCommand {
+class SonicCommand extends MediaCommand {
   params() {
     const cleanedMessage = cleanMessage(this.message ?? this.interaction, this.options.text ?? this.args.join(" "));
     return {

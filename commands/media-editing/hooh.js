@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class HooHCommand extends ImageCommand {
+class HooHCommand extends MediaCommand {
   params = {
     vertical: true
   };

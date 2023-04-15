@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class ZamnCommand extends ImageCommand {
+class ZamnCommand extends MediaCommand {
   static description = "Adds a \"ZAMN\" reaction to an image";
 
   static noImage = "You need to provide an image/GIF to \"ZAMN\" at!";

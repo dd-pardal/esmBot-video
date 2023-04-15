@@ -5,16 +5,24 @@ project(image)
 
 file(GLOB SOURCE_FILES "natives/*.cc" "natives/*.h")
 
-if (CMAKE_JS_VERSION)
+add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+
+if(CMAKE_JS_VERSION)
   include_directories(${CMAKE_JS_INC})
-  add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC} natives/node/image.cc)
-  set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
-  target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB})
+  add_library(${PROJECT_NAME}-node SHARED ${CMAKE_JS_SRC} natives/node/image.cc)
+  set_target_properties(${PROJECT_NAME}-node PROPERTIES PREFIX "" OUTPUT_NAME "image" SUFFIX ".node")
+  target_link_libraries(${PROJECT_NAME}-node ${CMAKE_JS_LIB} ${PROJECT_NAME})
+  target_compile_features(${PROJECT_NAME}-node PRIVATE cxx_std_17)
+
+  add_library(${PROJECT_NAME}-c SHARED natives/c-bindings/image.cc)
+  target_link_libraries(${PROJECT_NAME}-c ${PROJECT_NAME})
+  target_compile_features(${PROJECT_NAME}-c PRIVATE cxx_std_17)
 else()
-  add_executable(${PROJECT_NAME} ${SOURCE_FILES} natives/cli/image.cc)
+  add_executable(${PROJECT_NAME}-cli natives/cli/image.cc)
+  target_compile_features(${PROJECT_NAME}-cli PRIVATE cxx_std_17)
 endif()
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
 if(MSVC) # todo: change flags for more parity with GCC/clang, I don't know much about MSVC so pull requests are open
   set(CMAKE_CXX_FLAGS "/Wall /EHsc /GS")

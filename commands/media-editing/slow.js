@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class SlowCommand extends ImageCommand {
+class SlowCommand extends MediaCommand {
   params() {
     const speed = parseInt(this.options.multiplier ?? this.args[0]);
     return {

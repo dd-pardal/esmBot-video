@@ -6,6 +6,8 @@
 #include <variant>
 #include <vector>
 
+#include <vips/vips8>
+
 using std::map;
 using std::string;
 using std::variant;

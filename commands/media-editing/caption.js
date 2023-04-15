@@ -1,7 +1,7 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import { default as MediaCommand, ffmpegConfig } from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
-class CaptionCommand extends ImageCommand {
+class CaptionCommand extends MediaCommand {
   params(url) {
     const newArgs = this.options.text ?? this.args.filter(item => !item.includes(url)).join(" ");
     let newCaption = cleanMessage(this.message ?? this.interaction, newArgs);
@@ -9,6 +9,23 @@ class CaptionCommand extends ImageCommand {
     return {
       caption: newCaption,
       font: typeof this.options.font === "string" && this.constructor.allowedFonts.includes(this.options.font.toLowerCase()) ? this.options.font.toLowerCase() : "futura"
+    };
+  }
+
+  ffmpegParams(url) {
+    const params = this.params(url);
+    return {
+      filterGraph: `\
+split
+[input1][input2];
+
+[input1]
+ebcaptionref=text=\\''${params.caption}'\\':font=\\''${params.font}'\\',
+format=${ffmpegConfig.pixelFormats}
+[caption];
+
+[caption][input2]
+vstack=shortest=1`
     };
   }
 
@@ -41,6 +58,8 @@ class CaptionCommand extends ImageCommand {
   static noText = "You need to provide some text to add a caption!";
   static noImage = "You need to provide an image/GIF to add a caption!";
   static command = "caption";
+
+  static acceptsVideo = true;
 }
 
 export default CaptionCommand;

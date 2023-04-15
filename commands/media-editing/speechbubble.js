@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class SpeechBubbleCommand extends ImageCommand {
+class SpeechBubbleCommand extends MediaCommand {
   params() {
     return {
       water: this.options.alpha ? "assets/images/speech.png" : "assets/images/speechbubble.png",

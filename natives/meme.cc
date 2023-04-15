@@ -24,24 +24,7 @@ VImage genText(string text, string font, string basePath, int width,
   return outline.composite2(in, VIPS_BLEND_MODE_OVER);
 }
 
-ArgumentMap Meme(string type, string *outType, char *BufferData,
-                 size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
-  string top = GetArgument<string>(Arguments, "top");
-  string bottom = GetArgument<string>(Arguments, "bottom");
-  string font = GetArgument<string>(Arguments, "font");
-  string basePath = GetArgument<string>(Arguments, "basePath");
-
-  VOption *options = VImage::option()->set("access", "sequential");
-
-  VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
-                              type == "gif" ? options->set("n", -1) : options)
-          .colourspace(VIPS_INTERPRETATION_sRGB);
-  if (!in.has_alpha()) in = in.bandjoin(255);
-
-  int width = in.width();
-  int pageHeight = vips_image_get_page_height(in.get_image());
-  int nPages = vips_image_get_n_pages(in.get_image());
+VImage generateMemeOverlay(int width, int height, string top, string bottom, string basePath, string font) {
   int size = width / 9;
   double radius = (double)size / 18;
 
@@ -60,7 +43,7 @@ ArgumentMap Meme(string type, string *outType, char *BufferData,
   }
 
   VImage combinedText =
-      VImage::black(width, pageHeight, VImage::option()->set("bands", 3))
+      VImage::black(width, height, VImage::option()->set("bands", 3))
           .bandjoin(0)
           .copy(VImage::option()->set("interpretation",
                                       VIPS_INTERPRETATION_sRGB));
@@ -80,10 +63,32 @@ ArgumentMap Meme(string type, string *outType, char *BufferData,
         bottomText, VIPS_BLEND_MODE_OVER,
         VImage::option()
             ->set("x", (width / 2) - (bottomText.width() / 2))
-            ->set("y", pageHeight - bottomText.height()));
+            ->set("y", height - bottomText.height()));
   }
 
-  VImage replicated = combinedText
+  return combinedText;
+}
+
+ArgumentMap Meme(string type, string *outType, char *BufferData,
+                 size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
+  string top = GetArgument<string>(Arguments, "top");
+  string bottom = GetArgument<string>(Arguments, "bottom");
+  string font = GetArgument<string>(Arguments, "font");
+  string basePath = GetArgument<string>(Arguments, "basePath");
+
+  VOption *options = VImage::option()->set("access", "sequential");
+
+  VImage in =
+      VImage::new_from_buffer(BufferData, BufferLength, "",
+                              type == "gif" ? options->set("n", -1) : options)
+          .colourspace(VIPS_INTERPRETATION_sRGB);
+  if (!in.has_alpha()) in = in.bandjoin(255);
+
+  int width = in.width();
+  int pageHeight = vips_image_get_page_height(in.get_image());
+  int nPages = vips_image_get_n_pages(in.get_image());
+
+  VImage replicated = generateMemeOverlay(width, pageHeight, top, bottom, basePath, font)
                           .copy(VImage::option()->set("interpretation",
                                                       VIPS_INTERPRETATION_sRGB))
                           .replicate(1, nPages);

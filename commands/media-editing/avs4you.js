@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class AVSCommand extends ImageCommand {
+class AVSCommand extends MediaCommand {
   params = {
     water: "assets/images/avs4you.png",
     gravity: 5,

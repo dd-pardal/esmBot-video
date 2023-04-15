@@ -1,5 +1,5 @@
 import Command from "../../classes/command.js";
-import imageDetect from "../../utils/imagedetect.js";
+import imageDetect from "../../utils/media-detection.js";
 import { selectedImages } from "../../utils/collections.js";
 
 class SelectImageCommand extends Command {

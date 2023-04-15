@@ -1,6 +1,6 @@
-import ImageCommand from "../../classes/imageCommand.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 
-class MemeCenterCommand extends ImageCommand {
+class MemeCenterCommand extends MediaCommand {
   params = {
     water: "assets/images/memecenter.png",
     gravity: 9,
