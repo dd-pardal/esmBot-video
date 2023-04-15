@@ -1,4 +1,5 @@
 import * as logger from "../utils/logger.js";
+import { parseNumberWithMultipliers } from "../utils/number-parsing.js";
 import { readdir, lstat, rm, writeFile, stat } from "fs/promises";
 
 let dirSizeCache;
@@ -74,16 +75,9 @@ async function removeOldImages(size) {
 }
 
 export async function parseThreshold() {
-  const matched = process.env.THRESHOLD.match(/(\d+)([KMGT])/);
-  const sizes = {
-    K: 1024,
-    M: 1048576,
-    G: 1073741824,
-    T: 1099511627776
-  };
-  if (matched && matched[1] && matched[2]) {
-    process.env.THRESHOLD = matched[1] * sizes[matched[2]];
-  } else {
+  try {
+    process.env.THRESHOLD = parseNumberWithMultipliers(process.env.THRESHOLD);
+  } catch {
     logger.error("Invalid THRESHOLD config.");
     process.env.THRESHOLD = undefined;
   }
