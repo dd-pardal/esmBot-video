@@ -39,6 +39,7 @@ import { reload, connect, connected } from "./utils/soundplayer.js";
 // events
 import { endBroadcast, startBroadcast } from "./utils/misc.js";
 import { parseThreshold } from "./utils/tempimages.js";
+import { parseNumberWithMultipliers } from "./utils/number-parsing.js";
 
 const { types } = JSON.parse(readFileSync(new URL("./config/commands.json", import.meta.url)));
 const esmBotVersion = JSON.parse(readFileSync(new URL("./package.json", import.meta.url))).version;
@@ -106,6 +107,12 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
   // process the threshold into bytes early
   if (process.env.TEMPDIR && process.env.THRESHOLD) {
     await parseThreshold();
+  }
+
+  if (process.env.FFMPEG_MEMORY_LIMIT) {
+    process.env.FFMPEG_MEMORY_LIMIT = parseNumberWithMultipliers(process.env.FFMPEG_MEMORY_LIMIT);
+  } else {
+    logger.warn("FFMPEG_MEMORY_LIMIT is unset. FFmpeg's memory usage will not be limited.");
   }
 
   // register commands and their info
@@ -229,3 +236,9 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
 }
 
 init();
+
+function stop() {
+  process.exit();
+}
+process.once("SIGINT", stop);
+process.once("SIGTERM", stop);

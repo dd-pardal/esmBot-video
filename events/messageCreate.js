@@ -173,7 +173,7 @@ export default async (client, message) => {
         let err = error;
         if (error?.constructor?.name == "Promise") err = await error;
         await client.rest.channels.createMessage(message.channelID, Object.assign({
-          content: "Uh oh! I ran into an error while running this command. Please report the content of the attached file at the following link or on the esmBot Support server: <https://github.com/esmBot/esmBot/issues>",
+          content: "Uh oh! I ran into an error while running this command.",
           files: [{
             contents: `Message: ${clean(err)}\n\nStack Trace: ${clean(err.stack)}`,
             name: "error.txt"

@@ -20,6 +20,13 @@ export const ffmpegConfig = {
 
 const limiter = new ConcurrencyLimiter(Number.parseInt(process.env.MEDIA_CONCURRENCY_LIMIT));
 
+const childProcesses = new Set();
+process.on("exit", () => {
+  for (const child of childProcesses) {
+    child.kill("SIGKILL");
+  }
+});
+
 class MediaCommand extends Command {
   async criteria() {
     return true;
@@ -89,43 +96,63 @@ class MediaCommand extends Command {
     return limiter.runWhenFree(async () => {
       if (this.constructor.ffmpegOnly || media.mediaType === "video") {
         const outputFilename = `/tmp/esmBot-${Math.random().toString(36).substring(2, 15)}.webm`;
-        try {
-          const params = this.ffmpegParams(media.url);
-          // TODO: Stream the data from FFmpeg directly to Discord and to a file in TEMPDIR. If
-          // there is an error, abort the request and remove the file. If the request body exceeds
-          // 8MiB, abort the request and, when processing has finished, send the embed with the
-          // link to TMP_DOMAIN and keep the file. If there is no error and the request doesn't
-          // exceed 8MiB, remove the file.
-          const output = await execFileP("ffmpeg/ffmpeg", [
-            // Global options
-            "-y", "-nostats",
-            // Input
-            "-i", media.url,
-            // Filter
-            "-vf", `fps=25, scale='min(${process.env.MAX_VIDEO_DIMENSIONS},iw)':'min(${process.env.MAX_VIDEO_DIMENSIONS},ih)':force_original_aspect_ratio=decrease:sws_flags=fast_bilinear, ${params.filterGraph}, scale='min(${process.env.MAX_VIDEO_DIMENSIONS},iw)':'min(${process.env.MAX_VIDEO_DIMENSIONS},ih)':force_original_aspect_ratio=decrease:sws_flags=fast_bilinear`,
-            // Video encoding
-            "-c:v", "libvpx", "-minrate", "500k", "-b:v", "2000k", "-maxrate", "5000k", "-cpu-used", "5", "-auto-alt-ref", "0",
-            // Audio encoding
-            "-c:a", "libopus", "-b:a", "64000",
-            // Output
-            "-fs", process.env.MAX_VIDEO_SIZE, "-f", "webm", outputFilename,
-          ], {
-            // TODO: Send a SIGKILL some seconds after the timeout in case FFmpeg hangs
-            timeout: Number.parseInt(process.env.VIDEO_SOFT_TIMEOUT)
-          });
-          return {
-            contents: await readFile(outputFilename),
-            name: `${this.constructor.command}.webm`
-          }
-        } finally {
+        const params = this.ffmpegParams(media.url);
+        // TODO: Stream the data from FFmpeg directly to Discord and to a file in TEMPDIR. If
+        // there is an error, abort the request and remove the file. If the request body exceeds
+        // 8MiB, abort the request and, when processing has finished, send the embed with the
+        // link to TMP_DOMAIN and keep the file. If there is no error and the request doesn't
+        // exceed 8MiB, remove the file.
+
+        const softTimeout = setTimeout(() => {
+          promise.child.kill("SIGTERM");
+        }, Number.parseInt(process.env.VIDEO_SOFT_TIMEOUT));
+        const hardTimeout = setTimeout(() => {
+          promise.child.kill("SIGKILL");
+        }, Number.parseInt(process.env.VIDEO_HARD_TIMEOUT));
+
+        const promise = execFileP("ffmpeg/ffmpeg", [
+          // Global options
+          "-y", "-nostats", "-nostdin", "-hide_banner", ...(process.env.FFMPEG_MEMORY_LIMIT ? ["-memorylimit", process.env.FFMPEG_MEMORY_LIMIT] : []),
+          // Input
+          "-i", media.url,
+          // Filter
+          "-vf", `fps=25, scale='min(${process.env.MAX_VIDEO_DIMENSIONS},iw)':'min(${process.env.MAX_VIDEO_DIMENSIONS},ih)':force_original_aspect_ratio=decrease:sws_flags=fast_bilinear, ${params.filterGraph}, scale='min(${process.env.MAX_VIDEO_DIMENSIONS},iw)':'min(${process.env.MAX_VIDEO_DIMENSIONS},ih)':force_original_aspect_ratio=decrease:sws_flags=fast_bilinear`,
+          // Video encoding
+          "-c:v", "libvpx", "-minrate", "500k", "-b:v", "2000k", "-maxrate", "5000k", "-cpu-used", "5", "-auto-alt-ref", "0",
+          // Audio encoding
+          "-c:a", "libopus", "-b:a", "64000",
+          // Output
+          "-fs", process.env.MAX_VIDEO_SIZE, "-f", "webm", outputFilename,
+        ]);
+        childProcesses.add(promise.child);
+
+        const cleanup = () => {
           rm(outputFilename).catch(() => {});
+          childProcesses.delete(promise.child);
+          clearTimeout(softTimeout);
+          clearTimeout(hardTimeout);
           try {
-            if (status) await status.delete();
+            if (status) status.delete().catch(() => {});
           } catch {
             // no-op
           }
           runningCommands.delete(this.author.id);
         }
+
+        try {
+          await promise;
+        } catch (err) {
+          if (err.code !== 255) {
+            cleanup();
+            throw err.stderr;
+          }
+        }
+        const output = {
+          contents: await readFile(outputFilename),
+          name: `${this.constructor.command}.webm`
+        };
+        cleanup();
+        return output;
       } else {
         imageParams.path = media.path;
         imageParams.params.type = media.type;
