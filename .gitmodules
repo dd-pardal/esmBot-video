@@ -1,6 +1,6 @@
 [submodule "assets/images/region-flags"]
 	path = assets/images/region-flags
-	url = https://github.com/fonttools/region-flags
+	url = https://github.com/esmBot/region-flags
 [submodule "ffmpeg"]
 	path = ffmpeg
 	url = https://github.com/dd-pardal/esmBot-FFmpeg.git

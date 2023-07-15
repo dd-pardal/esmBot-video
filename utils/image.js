@@ -50,7 +50,7 @@ export async function reloadImageConnections() {
 
 function chooseServer(ideal) {
   if (ideal.length === 0) throw "No available servers";
-  const sorted = ideal.sort((a, b) => {
+  const sorted = ideal.filter((v) => !!v).sort((a, b) => {
     return a.load - b.load;
   });
   return sorted[0];
@@ -62,6 +62,10 @@ async function getIdeal(object) {
     if (connection.conn.readyState !== 0 && connection.conn.readyState !== 1) {
       continue;
     }
+    if (!connection.funcs.includes(object.cmd)) {
+      idealServers.push(null);
+      continue;
+    }
     if (object.params.type && !connection.formats[object.cmd]?.includes(object.params.type)) continue;
     idealServers.push({
       addr: address,
@@ -69,6 +73,7 @@ async function getIdeal(object) {
     });
   }
   const server = chooseServer(idealServers);
+  if (!server) return;
   return connections.get(server.addr);
 }
 
@@ -88,15 +93,16 @@ export async function runImageJob(params) {
   if (process.env.API_TYPE === "ws") {
     for (let i = 0; i < 3; i++) {
       const currentServer = await getIdeal(params);
+      if (!currentServer) return {
+        type: "nocmd"
+      };
       try {
         await currentServer.queue(BigInt(params.id), params);
         await currentServer.wait(BigInt(params.id));
         const output = await currentServer.getOutput(params.id);
         return output;
       } catch (e) {
-        if (i < 2 && e === "Request ended prematurely due to a closed connection") {
-          continue;
-        } else {
+        if (i >= 2 && e !== "Request ended prematurely due to a closed connection") {
           if (e === "No available servers" && i >= 2) throw "Request ended prematurely due to a closed connection";
           throw e;
         }

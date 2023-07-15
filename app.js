@@ -145,7 +145,7 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
     },
     gateway: {
       concurrency: "auto",
-      maxShards: shardArray?.length,
+      maxShards: "auto",
       shardIDs: shardArray,
       presence: {
         status: "idle",
@@ -194,8 +194,7 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
         pm2Bus.on("process:msg", async (packet) => {
           switch (packet.data?.type) {
             case "reload":
-              var path = paths.get(packet.data.message);
-              await load(client, path, true);
+              await load(client, paths.get(packet.data.message), true);
               break;
             case "soundreload":
               await reload(client);

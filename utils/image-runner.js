@@ -25,10 +25,15 @@ const enumMap = {
 
 export default function run(object) {
   return new Promise((resolve, reject) => {
+    // Check if command exists
+    if (!img.funcs.includes(object.cmd)) return resolve({
+      buffer: Buffer.alloc(0),
+      fileExtension: "nocmd"
+    });
     // If the image has a path, it must also have a type
     let promise = Promise.resolve();
     if (object.path) {
-      if (object.params.type !== "image/gif" && object.onlyGIF) resolve({
+      if (object.params.type !== "image/gif" && object.onlyGIF) return resolve({
         buffer: Buffer.alloc(0),
         fileExtension: "nogif"
       });

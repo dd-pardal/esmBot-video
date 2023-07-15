@@ -57,17 +57,26 @@ class MediaCommand extends Command {
     if (this.constructor.requiresImage) {
       try {
         const selection = selectedImages.get(this.author.id);
-        media = selection ?? await mediaDetect(this.client, this.message, this.interaction, this.options, true, true);
+        media = selection ?? await mediaDetect(this.client, this.message, this.interaction, this.options, true, true).catch(e => {
+          if (e === "Timed out") {
+            return { type: "timeout" };
+          } else {
+            throw e;
+          }
+        });
         if (selection) selectedImages.delete(this.author.id);
         if (media === undefined) {
           runningCommands.delete(this.author.id);
           return `${this.constructor.noImage} (Tip: try right-clicking/holding on a message and press Apps -> Select Image, then try again.)`;
         } else if (media.type === "large") {
           runningCommands.delete(this.author.id);
-          return "That file is too large (>= 25MB)! Try using a smaller file.";
+          return "That file is too large (>= 40MB)! Try using a smaller file.";
         } else if (media.type === "tenorlimit") {
           runningCommands.delete(this.author.id);
           return "I've been rate-limited by Tenor. Please try uploading your GIF elsewhere.";
+        } else if (media.type === "timeout") {
+          runningCommands.delete(this.author.id);
+          return "The request to get that image timed out. Please try again or use another image.";
         }
       } catch (e) {
         runningCommands.delete(this.author.id);
@@ -101,7 +110,7 @@ class MediaCommand extends Command {
         // there is an error, abort the request and remove the file. If the request body exceeds
         // 8MiB, abort the request and, when processing has finished, send the embed with the
         // link to TMP_DOMAIN and keep the file. If there is no error and the request doesn't
-        // exceed 8MiB, remove the file.
+        // exceed 40MiB, remove the file.
 
         const softTimeout = setTimeout(() => {
           promise.child.kill("SIGTERM");
@@ -168,9 +177,8 @@ class MediaCommand extends Command {
 
         try {
           const { buffer, type } = await runImageJob(imageParams);
-          if (type === "nogif" && this.constructor.requiresGIF) {
-            return "That isn't a GIF!";
-          }
+          if (type === "nocmd") return "That command isn't supported on this instance of esmBot.";
+          if (type === "nogif" && this.constructor.requiresGIF) return "That isn't a GIF!";
           this.success = true;
           return {
             contents: buffer,

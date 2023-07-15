@@ -82,7 +82,7 @@ export default async (client, message) => {
       disabledCache.set(message.guildID, guildDB.disabled);
       disabled = guildDB.disabled;
     }
-    if (disabled.includes(message.channelID) && command != "channel") return;
+    if (disabled.includes(message.channelID) && command !== "channel") return;
 
     let disabledCmds = disabledCmdCache.get(message.guildID);
     if (!disabledCmds) {
@@ -125,7 +125,7 @@ export default async (client, message) => {
       }, reference));
     } else if (typeof result === "object") {
       if (result.contents && result.name) {
-        let fileSize = 8388119;
+        let fileSize = 26214400;
         if (message.guildID) {
           switch (message.guild.premiumTier) {
             case 2:
@@ -141,7 +141,7 @@ export default async (client, message) => {
             await upload(client, result, message);
           } else {
             await client.rest.channels.createMessage(message.channelID, {
-              content: "The resulting image was more than 8MB in size, so I can't upload it."
+              content: "The resulting image was more than 25MB in size, so I can't upload it."
             });
           }
         } else {
@@ -171,7 +171,7 @@ export default async (client, message) => {
       _error(`Error occurred with command message ${message.content}: ${error.stack || error}`);
       try {
         let err = error;
-        if (error?.constructor?.name == "Promise") err = await error;
+        if (error?.constructor?.name === "Promise") err = await error;
         await client.rest.channels.createMessage(message.channelID, Object.assign({
           content: "Uh oh! I ran into an error while running this command.",
           files: [{

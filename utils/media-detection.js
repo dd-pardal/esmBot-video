@@ -28,7 +28,7 @@ const gfycatURLs = [
   "www.gfycat.com",
   "thumbs.gfycat.com",
   "giant.gfycat.com"
-]; //lol!
+];
 
 const combined = [...tenorURLs, ...giphyURLs, ...giphyMediaURLs, ...imgurURLs, ...gfycatURLs];
 
@@ -54,7 +54,7 @@ export async function getType(image, extraReturnTypes, video) {
     });
     clearTimeout(timeout);
     const size = imageRequest.headers["content-range"] ? imageRequest.headers["content-range"].split("/")[1] : imageRequest.headers["content-length"];
-    if (parseInt(size) > 26214400 && extraReturnTypes && !video) { // 25 MB
+    if (parseInt(size) > 41943040 && extraReturnTypes && !video) { // 40 MB
       type = "large";
       return type;
     }
@@ -80,7 +80,7 @@ export async function getType(image, extraReturnTypes, video) {
     }
   } catch (error) {
     if (error.name === "AbortError") {
-      throw Error("Media type detection timed out");
+      throw Error(`Timed out when requesting ${image}`);
     } else {
       throw error;
     }
@@ -233,20 +233,12 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
   }
   if (!singleMessage) {
     // if there aren't any replies or interaction attachments then iterate over the last few messages in the channel
-    try {
-      const channel = (interaction ? interaction : cmdMessage).channel ?? await client.rest.channels.get((interaction ? interaction : cmdMessage).channelID);
-      const messages = await channel.getMessages();
-      // iterate over each message
-      for (const message of messages) {
-        const result = await checkMessageForMedia(message, extraReturnTypes, video, sticker);
-        if (result === false) {
-          continue;
-        } else {
-          return result;
-        }
-      }
-    } catch {
-      // no-op
+    const channel = (interaction ? interaction : cmdMessage).channel ?? await client.rest.channels.get((interaction ? interaction : cmdMessage).channelID);
+    const messages = await channel.getMessages();
+    // iterate over each message
+    for (const message of messages) {
+      const result = await checkMessageForMedia(message, extraReturnTypes, video, sticker);
+      if (result !== false) return result;
     }
   }
 };

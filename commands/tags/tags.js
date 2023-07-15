@@ -11,7 +11,7 @@ class TagsCommand extends Command {
     if (!this.guild) return "This command only works in servers!";
     const cmd = this.type === "classic" ? (this.args[0] ?? "").toLowerCase() : this.optionsArray[0].name;
     if (!cmd || !cmd.trim()) return "You need to provide the name of the tag you want to view!";
-    const tagName = this.type === "classic" ? this.args.slice(1)[0] : (this.optionsArray[0].options[0] ?? {}).value;
+    const tagName = this.type === "classic" ? this.args.slice(1)[0] : this.optionsArray[0].options[0]?.value;
 
     if (cmd === "create" || cmd === "add") {
       if (!tagName || !tagName.trim()) return "You need to provide the name of the tag you want to add!";
@@ -49,12 +49,12 @@ class TagsCommand extends Command {
       if (!user) {
         try {
           const restUser = await this.client.rest.users.get(getResult.author);
-          return `This tag is owned by **${restUser.username}#${restUser.discriminator}** (\`${getResult.author}\`).`;
+          return `This tag is owned by **${restUser.username}${restUser.discriminator === 0 ? `#${restUser.discriminator}` : ""}** (\`${getResult.author}\`).`;
         } catch {
           return `I couldn't find exactly who owns this tag, but I was able to get their ID: \`${getResult.author}\``;
         }
       } else {
-        return `This tag is owned by **${user.username}#${user.discriminator}** (\`${getResult.author}\`).`;
+        return `This tag is owned by **${user.username}${user.discriminator === 0 ? `#${user.discriminator}` : ""}** (\`${getResult.author}\`).`;
       }
     } else if (cmd === "list") {
       if (!this.permissions.has("EMBED_LINKS")) return "I don't have the `Embed Links` permission!";

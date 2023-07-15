@@ -17,12 +17,12 @@ export async function upload(client, result, context, interaction = false) {
         url: imageURL
       },
       footer: {
-        text: "The result image was more than 8MB in size, so it was uploaded to an external site instead."
+        text: "The result image was more than 25MB in size, so it was uploaded to an external site instead."
       },
     }]
   };
   if (interaction) {
-    await context[context.acknowledged ? "editOriginal" : "createMessage"](payload);
+    await context[context.acknowledged ? "createFollowup" : "createMessage"](payload);
   } else {
     await client.rest.channels.createMessage(context.channelID, Object.assign(payload, {
       messageReference: {
