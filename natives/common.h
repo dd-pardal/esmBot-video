@@ -48,7 +48,6 @@ typedef map<string, ArgumentVariant> ArgumentMap;
 #include "squish.h"
 #include "swirl.h"
 #include "tile.h"
-#include "togif.h"
 #include "uncanny.h"
 #include "uncaption.h"
 #include "wall.h"
@@ -131,7 +130,6 @@ const std::map<std::string,
                    {"squish", Squish},
                    {"swirl", Swirl},
                    {"tile", Tile},
-                   {"togif", ToGif},
                    {"uncanny", Uncanny},
                    {"uncaption", &Uncaption},
 #if MAGICK_ENABLED

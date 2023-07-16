@@ -56,7 +56,7 @@ export default function run(object) {
     // Convert from a MIME type (e.g. "image/png") to something the image processor understands (e.g. "png").
     // Don't set `type` directly on the object we are passed as it will be read afterwards.
     // If no image type is given (say, the command generates its own image), make it a PNG.
-    const fileExtension = object.params.type ? object.params.type.split("/")[1] : "png";
+    const fileExtension = object.params.type?.match(/(?<=^\w+\/)[\w\d]+/)?.[0] ?? "png";
     promise.then(buf => {
       if (buf) object.params.data = buf;
       const objectWithFixedType = Object.assign({}, object.params, { type: fileExtension });
