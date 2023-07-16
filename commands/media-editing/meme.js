@@ -67,6 +67,7 @@ overlay=shortest=1`
   static command = "meme";
 
   static acceptsVideo = true;
+  static ffmpegOnly = true;
 }
 
 export default MemeCommand;

@@ -59,6 +59,7 @@ vstack=shortest=1`
   static command = "caption";
 
   static acceptsVideo = true;
+  static ffmpegOnly = true;
 }
 
 export default CaptionCommand;
