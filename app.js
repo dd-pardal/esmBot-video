@@ -159,6 +159,9 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
     collectionLimits: {
       messages: 50,
       channels: !types.classic ? 0 : Infinity
+    },
+    rest: {
+      requestTimeout: 20000
     }
   });
 
