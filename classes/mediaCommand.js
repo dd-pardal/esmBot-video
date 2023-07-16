@@ -106,9 +106,14 @@ class MediaCommand extends Command {
           return `Unknown format. Please use one of the following: png, jpeg, gif, webm, mp4.`;
         }
       } else {
-        format = media.type?.match(/(?<=^\w+\/)[\w\d]+/)?.[0];
-        if (!defaultCodecs.has(format)) {
-          format = media.type?.startsWith("image/") ? "png" : "webm";
+        // Use the same format as the input
+        if (media.gifv) {
+          format = "gif";
+        } else {
+          format = media.type?.match(/(?<=^\w+\/)[\w\d]+/)?.[0];
+          if (!defaultCodecs.has(format)) {
+            format = media.type?.startsWith("image/") ? "png" : "webm";
+          }
         }
       }
 

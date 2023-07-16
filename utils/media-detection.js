@@ -96,13 +96,15 @@ const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, ty
     const fileNameSplit = new URL(image).pathname.split("/");
     const fileName = fileNameSplit[fileNameSplit.length - 1];
     const fileNameNoExtension = fileName.slice(0, fileName.lastIndexOf("."));
+    const host = new URL(image2).host;
+    gifv ||= link && combined.includes(host);
     const payload = {
       url: image2,
       path: image,
-      name: fileNameNoExtension
+      name: fileNameNoExtension,
+      gifv
     };
-    const host = new URL(image2).host;
-    if (gifv || (link && combined.includes(host))) {
+    if (!video && gifv) {
       payload.mediaType = "image";
       if (tenorURLs.includes(host)) {
         // Tenor doesn't let us access a raw GIF without going through their API,
