@@ -1,4 +1,4 @@
-import { default as MediaCommand, ffmpegConfig } from "../../classes/mediaCommand.js";
+import { default as MediaCommand } from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
 class CaptionCommand extends MediaCommand {
@@ -20,8 +20,7 @@ split
 [input1][input2];
 
 [input1]
-ebcaptionref=text=\\''${params.caption}'\\':font=\\''${params.font}'\\',
-format=${ffmpegConfig.pixelFormats}
+ebcaptionref=text=\\''${params.caption}'\\':font=\\''${params.font}'\\'
 [caption];
 
 [caption][input2]
