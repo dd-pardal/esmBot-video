@@ -23,7 +23,7 @@ const defaultCodecs = new Map([
   ["mp4", { video: "avc", audio: "aac" }],
 ]);
 
-const limiter = new ConcurrencyLimiter(Number.parseInt(process.env.MEDIA_CONCURRENCY_LIMIT));
+const limiter = new ConcurrencyLimiter(process.env.MEDIA_CONCURRENCY_LIMIT ? Number.parseInt(process.env.MEDIA_CONCURRENCY_LIMIT) : Infinity);
 
 const childProcesses = new Set();
 process.on("exit", () => {

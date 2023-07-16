@@ -114,7 +114,11 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
   } else {
     logger.warn("FFMPEG_MEMORY_LIMIT is unset. FFmpeg's memory usage will not be limited.");
   }
-
+  if (process.env.MEDIA_CONCURRENCY_LIMIT) {
+    process.env.MEDIA_CONCURRENCY_LIMIT = parseNumberWithMultipliers(process.env.MEDIA_CONCURRENCY_LIMIT);
+  } else {
+    logger.warn("MEDIA_CONCURRENCY_LIMIT is unset. The number of media commands running at the same time will not be limited. This may cause memory exhaustion.");
+  }
   // register commands and their info
   logger.log("info", "Attempting to load commands...");
   for await (const commandFile of getFiles(resolve(dirname(fileURLToPath(import.meta.url)), "./commands/"))) {
