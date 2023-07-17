@@ -125,11 +125,9 @@ class MediaCommand extends Command {
 
       return limiter.runWhenFree(async () => {
         const outputFilename = `/tmp/esmBot-${Math.random().toString(36).substring(2, 15)}.${format}`;
-        // TODO: Stream the data from FFmpeg directly to Discord and to a file in TEMPDIR. If
-        // there is an error, abort the request and remove the file. If the request body exceeds
-        // 8MiB, abort the request and, when processing has finished, send the embed with the
-        // link to TMP_DOMAIN and keep the file. If there is no error and the request doesn't
-        // exceed 40MiB, remove the file.
+        // TODO: Stream the data from FFmpeg directly to Discord. If there is an error, abort the
+        // request. If the request body exceeds 25MiB, abort the request and, when processing has
+        // finished, write the output to a file and send the embed with the link to TMP_DOMAIN.
 
         const softTimeout = setTimeout(() => {
           promise.child.kill("SIGTERM");
