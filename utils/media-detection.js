@@ -43,10 +43,10 @@ export async function getType(image, extraReturnTypes, video) {
     return undefined;
   }
   let type;
-  const controller = new AbortController();
+  let controller = new AbortController();
   let timeout = setTimeout(() => {
     controller.abort();
-  }, 3000);
+  }, 10_000);
   try {
     const imageRequest = await request(image, {
       signal: controller.signal,
@@ -62,9 +62,10 @@ export async function getType(image, extraReturnTypes, video) {
     if (typeHeader) {
       type = typeHeader;
     } else {
+      controller = new AbortController();
       timeout = setTimeout(() => {
         controller.abort();
-      }, 3000);
+      }, 10_000);
       const bufRequest = await request(image, {
         signal: controller.signal,
         headers: {
