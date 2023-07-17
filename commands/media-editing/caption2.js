@@ -12,6 +12,23 @@ class CaptionTwoCommand extends MediaCommand {
     };
   }
 
+  ffmpegParams(url) {
+    const params = this.params(url);
+    return {
+      filterGraph: `\
+format=rgb24,
+split
+[input1][input2];
+
+[input1]
+ebcaptiontworef=text=\\''${params.caption}'\\':font=\\''${params.font}'\\'
+[caption];
+
+[input2][caption]
+vstack=shortest=1`
+    };
+  }
+
   static init() {
     super.init();
     this.flags.push({
@@ -41,6 +58,9 @@ class CaptionTwoCommand extends MediaCommand {
   static noText = "You need to provide some text to add a caption!";
   static noImage = "You need to provide an image/GIF to add a caption!";
   static command = "captionTwo";
+
+  static acceptsVideo = true;
+  static ffmpegOnly = true;
 }
 
 export default CaptionTwoCommand;

@@ -7,26 +7,8 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap CaptionTwo(string type, string *outType, char *BufferData,
-                 size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
-  bool top = GetArgument<bool>(Arguments, "top");
-  string caption = GetArgument<string>(Arguments, "caption");
-  string font = GetArgument<string>(Arguments, "font");
-  string basePath = GetArgument<string>(Arguments, "basePath");
-
-  VOption *options = VImage::option()->set("access", "sequential");
-
-  VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
-                              type == "gif" ? options->set("n", -1) : options)
-          .colourspace(VIPS_INTERPRETATION_sRGB);
-
-  if (!in.has_alpha()) in = in.bandjoin(255);
-
-  int width = in.width();
+VImage generateCaptionTwo(int width, string caption, string basePath, string font) {
   int size = width / 13;
-  int pageHeight = vips_image_get_page_height(in.get_image());
-  int nPages = vips_image_get_n_pages(in.get_image());
   int textWidth = width - ((width / 25) * 2);
 
   string font_string = (font == "roboto" ? "Roboto Condensed" : font) +
@@ -49,11 +31,34 @@ ArgumentMap CaptionTwo(string type, string *outType, char *BufferData,
           ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
           ->set("align", VIPS_ALIGN_LOW)
           ->set("width", textWidth));
-  VImage captionImage =
+  return
       ((text == zeroVec).bandand())
           .ifthenelse(255, text)
           .embed(width / 25, width / 25, width, text.height() + size,
                  VImage::option()->set("extend", "white"));
+}
+
+ArgumentMap CaptionTwo(string type, string *outType, char *BufferData,
+                 size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
+  bool top = GetArgument<bool>(Arguments, "top");
+  string caption = GetArgument<string>(Arguments, "caption");
+  string font = GetArgument<string>(Arguments, "font");
+  string basePath = GetArgument<string>(Arguments, "basePath");
+
+  VOption *options = VImage::option()->set("access", "sequential");
+
+  VImage in =
+      VImage::new_from_buffer(BufferData, BufferLength, "",
+                              type == "gif" ? options->set("n", -1) : options)
+          .colourspace(VIPS_INTERPRETATION_sRGB);
+
+  if (!in.has_alpha()) in = in.bandjoin(255);
+
+  int width = in.width();
+  int pageHeight = vips_image_get_page_height(in.get_image());
+  int nPages = vips_image_get_n_pages(in.get_image());
+
+  VImage captionImage = generateCaptionTwo(width, caption, basePath, font);
 
   vector<VImage> img;
   for (int i = 0; i < nPages; i++) {

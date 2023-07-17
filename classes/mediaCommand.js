@@ -296,7 +296,7 @@ class MediaCommand extends Command {
     return this;
   }
 
-  static allowedFonts = ["futura", "impact", "helvetica", "arial", "roboto", "noto", "times", "comic sans ms"];
+  static allowedFonts = ["futura", "impact", "helvetica", "helvetica neue", "arial", "roboto", "noto", "times", "comic sans ms"];
 
   static requiresImage = true;
   static requiresText = false;

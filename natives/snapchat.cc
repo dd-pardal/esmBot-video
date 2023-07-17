@@ -7,28 +7,12 @@ using namespace vips;
 
 const vector<double> zeroVec178 = {0, 0, 0, 178};
 
-ArgumentMap Snapchat(string type, string *outType, char *BufferData,
-                     size_t BufferLength, ArgumentMap Arguments,
-                     size_t *DataSize) {
-  string caption = GetArgument<string>(Arguments, "caption");
-  float pos = GetArgumentWithFallback<float>(Arguments, "pos", 0.5);
-  string basePath = GetArgument<string>(Arguments, "basePath");
-
-  VOption *options = VImage::option()->set("access", "sequential");
-
-  VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
-                              type == "gif" ? options->set("n", -1) : options)
-          .colourspace(VIPS_INTERPRETATION_sRGB);
-  if (!in.has_alpha()) in = in.bandjoin(255);
-
-  int width = in.width();
-  int pageHeight = vips_image_get_page_height(in.get_image());
-  int nPages = vips_image_get_n_pages(in.get_image());
+VImage generateSnapchatOverlay(int width, string caption, string basePath, string font) {
   int size = width / 20;
   int textWidth = width - ((width / 25) * 2);
 
-  string font_string = "Helvetica Neue, Twemoji Color Font " + to_string(size);
+  string font_string = (font == "roboto" ? "Roboto Condensed" : font) + " " +
+                       (font != "impact" ? "bold" : "normal") + ", Twemoji Color Font " + to_string(size);
 
   VImage textIn = VImage::text(
       ".", VImage::option()->set(
@@ -51,8 +35,31 @@ ArgumentMap Snapchat(string type, string *outType, char *BufferData,
                       VImage::option()
                           ->set("extend", "background")
                           ->set("background", zeroVec178));
+  return textIn;
+}
 
-  VImage replicated = textIn.embed(0, pageHeight * pos, width, pageHeight)
+ArgumentMap Snapchat(string type, string *outType, char *BufferData,
+                     size_t BufferLength, ArgumentMap Arguments,
+                     size_t *DataSize) {
+  string font = GetArgument<string>(Arguments, "font");
+  string caption = GetArgument<string>(Arguments, "caption");
+  float pos = GetArgumentWithFallback<float>(Arguments, "pos", 0.5);
+  string basePath = GetArgument<string>(Arguments, "basePath");
+
+  VOption *options = VImage::option()->set("access", "sequential");
+
+  VImage in =
+      VImage::new_from_buffer(BufferData, BufferLength, "",
+                              type == "gif" ? options->set("n", -1) : options)
+          .colourspace(VIPS_INTERPRETATION_sRGB);
+  if (!in.has_alpha()) in = in.bandjoin(255);
+
+  int width = in.width();
+  int pageHeight = vips_image_get_page_height(in.get_image());
+  int nPages = vips_image_get_n_pages(in.get_image());
+
+  VImage replicated = generateSnapchatOverlay(width, caption, basePath, font)
+                          .embed(0, pageHeight * pos, width, pageHeight)
                           .copy(VImage::option()->set("interpretation",
                                                       VIPS_INTERPRETATION_sRGB))
                           .replicate(1, nPages);

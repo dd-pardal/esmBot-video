@@ -6,7 +6,7 @@
 using namespace std;
 using namespace vips;
 
-VImage generateCaptionImage(int width, string caption, string basePath, string font) {
+VImage generateCaption(int width, string caption, string basePath, string font) {
   int size = width / 10;
   int textWidth = width - ((width / 25) * 2);
 
@@ -58,7 +58,7 @@ ArgumentMap Caption(string type, string *outType, char *BufferData,
   int pageHeight = vips_image_get_page_height(in.get_image());
   int nPages = vips_image_get_n_pages(in.get_image());
 
-  VImage captionImage = generateCaptionImage(width, caption, basePath, font);
+  VImage captionImage = generateCaption(width, caption, basePath, font);
 
   vector<VImage> img;
   for (int i = 0; i < nPages; i++) {
