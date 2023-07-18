@@ -169,7 +169,9 @@ class MediaCommand extends Command {
 
           // Output
           "-fps_mode", "vfr",
-          "-fs", process.env.MAX_VIDEO_SIZE, outputFilename,
+          "-fs", process.env.MAX_VIDEO_SIZE,
+          ...(format === "mp4" ? ["-movflags", "+faststart"] : []),
+          outputFilename,
         ];
         console.debug(`Running ffmpeg ${ffmpegArgs.map(a => `'${a.replace(/\n\s*/g, " ").replaceAll("'", "'\\''")}'`).join(" ")}`);
         const promise = execFileP("ffmpeg/ffmpeg", ffmpegArgs);
