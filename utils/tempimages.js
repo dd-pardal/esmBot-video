@@ -5,19 +5,21 @@ import { readdir, lstat, rm, writeFile, stat } from "fs/promises";
 let dirSizeCache;
 
 export async function upload(client, result, context, interaction = false) {
-  const filename = `${Math.random().toString(36).substring(2, 15)}.${result.name.split(".")[1]}`;
+  const extension = result.name.match(/(?<=\.)[^\.]*$/)[0];
+  const type = extension === "webm" || extension === "mp4" ? "video" : "image";
+  const filename = `${Math.random().toString(36).substring(2, 15)}.${extension}`;
   await writeFile(`${process.env.TEMPDIR}/${filename}`, result.contents);
-  const imageURL = `${process.env.TMP_DOMAIN || "https://tmp.esmbot.net"}/${filename}`;
+  const url = `${process.env.TMP_DOMAIN || "https://tmp.esmbot.net"}/${filename}`;
   const payload = {
     embeds: [{
       color: 16711680,
-      title: "Here's your image!",
-      url: imageURL,
-      image: {
-        url: imageURL
+      title: `Here's your ${type}!`,
+      url,
+      [type]: {
+        url
       },
       footer: {
-        text: "The result image was more than 25MB in size, so it was uploaded to an external site instead."
+        text: `The result ${type} was more than 25MB in size, so it was uploaded to an external site instead.`
       },
     }]
   };
