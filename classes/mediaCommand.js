@@ -8,7 +8,7 @@ import { random } from "../utils/misc.js";
 import { selectedImages } from "../utils/collections.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { readFile, rm } from "fs/promises";
+import { readFile, rm, stat } from "fs/promises";
 import ConcurrencyLimiter from "../utils/concurrency-limiter.js";
 
 const execFileP = promisify(execFile);
@@ -129,11 +129,13 @@ class MediaCommand extends Command {
         // request. If the request body exceeds 25MiB, abort the request and, when processing has
         // finished, write the output to a file and send the embed with the link to TMP_DOMAIN.
 
+        let killed = false;
         const softTimeout = setTimeout(() => {
           promise.child.kill("SIGTERM");
         }, Number.parseInt(process.env.VIDEO_SOFT_TIMEOUT));
         const hardTimeout = setTimeout(() => {
           promise.child.kill("SIGKILL");
+          killed = true;
         }, Number.parseInt(process.env.VIDEO_HARD_TIMEOUT));
 
         const ffmpegArgs = [
@@ -190,15 +192,27 @@ class MediaCommand extends Command {
           runningCommands.delete(this.author.id);
         }
 
+        let text = undefined;
+        let output;
         try {
           await promise;
         } catch (err) {
-          if (err.code !== 255) {
+          if (err.stderr.includes("Cannot allocate memory") || err.stderr.includes("Resource temporarily unavailable")) {
+            output = "I don't have enough memory to run your command. Try using a smaller file."
+          } else if (err.code === 255 && killed) {
+            const statObj = await stat(outputFilename).catch(() => undefined);
+            if (statObj !== undefined && statObj.size > 0) {
+              text = "Your command took too long to execute and the processing was forcefully stopped. Try using a smaller file. The following output might be corrupted.";
+            } else {
+              output = "Your command took too long to execute and the processing was forcefully stopped. Try using a smaller file.";
+            }
+          } else {
             cleanup();
             throw err.stderr;
           }
         }
-        const output = {
+        output ??= {
+          text,
           contents: await readFile(outputFilename),
           name: `${this.constructor.command}.${format}`
         };
