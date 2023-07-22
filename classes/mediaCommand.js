@@ -199,14 +199,15 @@ class MediaCommand extends Command {
         } catch (err) {
           if (err.stderr.includes("Cannot allocate memory") || err.stderr.includes("Resource temporarily unavailable")) {
             output = "I don't have enough memory to run your command. Try using a smaller file."
-          } else if (err.code === 255 && killed) {
+          } else if (killed) {
             const statObj = await stat(outputFilename).catch(() => undefined);
             if (statObj !== undefined && statObj.size > 0) {
               text = "Your command took too long to execute and the processing was forcefully stopped. Try using a smaller file. The following output might be corrupted.";
             } else {
               output = "Your command took too long to execute and the processing was forcefully stopped. Try using a smaller file.";
             }
-          } else {
+          } else if (err.code !== 255) {
+            // FFmpeg exits with code 255 when it recieves SIGTERM.
             cleanup();
             throw err.stderr;
           }
