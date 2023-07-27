@@ -19,7 +19,13 @@ Choose the distro you're using below for insallation instructions.
 These instructions apply to Debian version 12 (bookworm) or Ubuntu version 22.04 (jammy) or later.
 
 ```sh
-sudo apt-get install git curl build-essential cmake ffmpeg sqlite3 ttf-mscorefonts-installer libmagick++-dev libvips-dev libcgif-dev libgirepository1.0-dev fonts-noto-color-emoji libimagequant-dev meson libvpx-dev libopus-dev libx264-dev libssl-dev
+sudo apt-get install git curl build-essential cmake ttf-mscorefonts-installer libmagick++-dev libvips-dev libcgif-dev libgirepository1.0-dev fonts-noto-color-emoji libimagequant-dev libvpx-dev libopus-dev libx264-dev libssl-dev
+```
+
+Additionally, if your architecture is x86 or x86_64, run:
+
+```sh
+sudo apt-get install nasm
 ```
 
 On older Debian/Ubuntu versions, you may need to install some of these packages (notably libcgif-dev and meson) through alternative methods.
