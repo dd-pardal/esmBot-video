@@ -197,7 +197,7 @@ class MediaCommand extends Command {
         try {
           await promise;
         } catch (err) {
-          if (err.stderr.includes("Cannot allocate memory") || err.stderr.includes("Resource temporarily unavailable")) {
+          if (err.stderr.includes("Cannot allocate memory") || err.stderr.includes("Resource temporarily unavailable") || err.stderr.match(/malloc of size \d+ failed/)) {
             output = "I don't have enough memory to run your command. Try using a smaller file."
           } else if (killed) {
             const statObj = await stat(outputFilename).catch(() => undefined);
@@ -209,7 +209,7 @@ class MediaCommand extends Command {
           } else if (err.code !== 255) {
             // FFmpeg exits with code 255 when it recieves SIGTERM.
             cleanup();
-            throw err.stderr;
+            throw `FFmpeg exited with code ${err.code}\nstderr: ${err.stderr}`;
           }
         }
         output ??= {
