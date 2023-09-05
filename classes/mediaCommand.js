@@ -56,7 +56,7 @@ class MediaCommand extends Command {
       try {
         const selection = selectedImages.get(this.author.id);
         media = selection ?? await mediaDetect(this.client, this.message, this.interaction, this.options, true, this.ffmpegOnly).catch(e => {
-          if (e === "Timed out") {
+          if (e.name === "AbortError") {
             return { type: "timeout" };
           } else {
             throw e;
