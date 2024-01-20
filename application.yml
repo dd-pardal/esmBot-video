@@ -11,7 +11,6 @@ lavalink:
       twitch: true
       vimeo: true
       http: true
-      local: true
     bufferDurationMs: 400
     youtubePlaylistLoadLimit: 6 # Number of pages at 100 each
     playerUpdateInterval: 1
@@ -19,10 +18,10 @@ lavalink:
     soundcloudSearchEnabled: true
     gc-warnings: true
   plugins:
-    - dependency: "com.github.esmBot:lava-xm-plugin:v0.2.1"
+    - dependency: "com.github.esmBot:lava-xm-plugin:v0.2.2"
       repository: "https://jitpack.io"
-    - dependency: "com.github.TopiSenpai.LavaSrc:lavasrc-plugin:3.2.0"
-      repository: "https://jitpack.io"
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.0.0"
+      repository: "https://maven.lavalink.dev/releases"
 
 plugins:
   lavasrc:
@@ -31,7 +30,7 @@ plugins:
       - "ytsearch:%QUERY%"
     sources:
       spotify: false
-      applemusic: true
+      applemusic: false
       deezer: false
     spotify:
         clientId: "your client id"
@@ -39,6 +38,7 @@ plugins:
         countryCode: "US"
     applemusic:
         countryCode: "US"
+        mediaAPIToken: "your api token"
     deezer:
         masterDecryptionKey: "go looking for this somewhere"
 

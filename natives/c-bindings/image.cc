@@ -2,7 +2,7 @@
 #include <vips/vips8>
 #include <vips/vips.h>
 #include <glib-object.h>
-#include "../common.h"
+#include "../command-parts.h"
 
 using namespace std;
 using namespace vips;

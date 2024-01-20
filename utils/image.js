@@ -1,20 +1,21 @@
-import { request } from "undici";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Worker } from "worker_threads";
 import { createRequire } from "module";
-import * as logger from "./logger.js";
+import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
+import logger from "./logger.js";
 import ImageConnection from "./imageConnection.js";
 
-// only requiring this to work around an issue regarding worker threads
+// init image libraries
 const nodeRequire = createRequire(import.meta.url);
 if (!process.env.API_TYPE || process.env.API_TYPE === "none") {
-  nodeRequire(`../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
+  const img = nodeRequire(`../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
+  img.imageInit();
 }
 
 export const connections = new Map();
-export let servers = process.env.API_TYPE === "ws" ? JSON.parse(fs.readFileSync(new URL("../config/servers.json", import.meta.url), { encoding: "utf8" })).image : null;
+export let servers = process.env.API_TYPE === "ws" ? JSON.parse(fs.readFileSync(new URL("../config/servers.json", import.meta.url), { encoding: "utf8" })).image : [];
 
 function connect(server, auth) {
   const connection = new ImageConnection(server, auth);

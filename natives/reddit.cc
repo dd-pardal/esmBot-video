@@ -5,15 +5,15 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap Reddit(string type, string *outType, char *BufferData,
-             size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
-  string text = GetArgument<string>(Arguments, "caption");
-  string basePath = GetArgument<string>(Arguments, "basePath");
+ArgumentMap Reddit(const string& type, string& outType, const char* bufferdata, size_t bufferLength, ArgumentMap arguments, size_t& dataSize)
+{
+  string text = GetArgument<string>(arguments, "caption");
+  string basePath = GetArgument<string>(arguments, "basePath");
 
   VOption *options = VImage::option()->set("access", "sequential");
 
   VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
+      VImage::new_from_buffer(bufferdata, bufferLength, "",
                               type == "gif" ? options->set("n", -1) : options)
           .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
@@ -27,15 +27,13 @@ ArgumentMap Reddit(string type, string *outType, char *BufferData,
 
   string captionText = "<span foreground=\"white\">" + text + "</span>";
 
+  LoadFonts(basePath);
   VImage textImage = VImage::text(
-      ".", VImage::option()->set(
-               "fontfile", (basePath + "assets/fonts/reddit.ttf").c_str()));
-  textImage = VImage::text(
       captionText.c_str(),
       VImage::option()
           ->set("rgba", true)
-          ->set("font", "Roboto, Twemoji Color Font 62")
-          ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
+          ->set("font", "Roboto 62")
+          ->set("fontfile", (basePath + "assets/fonts/reddit.ttf").c_str())
           ->set("align", VIPS_ALIGN_LOW));
 
   VImage composited =
@@ -56,15 +54,15 @@ ArgumentMap Reddit(string type, string *outType, char *BufferData,
   VImage final = VImage::arrayjoin(img, VImage::option()->set("across", 1));
   final.set(VIPS_META_PAGE_HEIGHT, pageHeight + watermark.height());
 
-  void *buf;
+  char *buf;
   final.write_to_buffer(
-      ("." + *outType).c_str(), &buf, DataSize,
-      *outType == "gif"
+      ("." + outType).c_str(), reinterpret_cast<void**>(&buf), &dataSize,
+      outType == "gif"
           ? VImage::option()->set("dither", 0)->set("reoptimise", 1)
           : 0);
 
   ArgumentMap output;
-  output["buf"] = (char *)buf;
+  output["buf"] = buf;
 
   return output;
 }

@@ -51,7 +51,7 @@ vstack=shortest=1`
 
   static description = "Adds a caption to an image";
   static aliases = ["gifc", "gcaption", "ifcaption", "ifunnycaption"];
-  static arguments = ["[text]"];
+  static args = ["[text]"];
 
   static requiresText = true;
   static noText = "You need to provide some text to add a caption!";

@@ -5,17 +5,17 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap Motivate(string type, string *outType, char *BufferData,
-               size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
-  string top_text = GetArgument<string>(Arguments, "top");
-  string bottom_text = GetArgument<string>(Arguments, "bottom");
-  string font = GetArgument<string>(Arguments, "font");
-  string basePath = GetArgument<string>(Arguments, "basePath");
+ArgumentMap Motivate(const string& type, string& outType, const char* bufferdata, size_t bufferLength, ArgumentMap arguments, size_t& dataSize)
+{
+  string top_text = GetArgument<string>(arguments, "top");
+  string bottom_text = GetArgument<string>(arguments, "bottom");
+  string font = GetArgument<string>(arguments, "font");
+  string basePath = GetArgument<string>(arguments, "basePath");
 
   VOption *options = VImage::option()->set("access", "sequential");
 
   VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
+      VImage::new_from_buffer(bufferdata, bufferLength, "",
                               type == "gif" ? options->set("n", -1) : options)
           .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
@@ -26,28 +26,28 @@ ArgumentMap Motivate(string type, string *outType, char *BufferData,
   int nPages = vips_image_get_n_pages(in.get_image());
   int textWidth = width - ((width / 25) * 2);
 
-  string font_string =
-      (font == "roboto" ? "Roboto Condensed" : font) + ", Twemoji Color Font";
-
+  string font_string = font == "roboto" ? "Roboto Condensed" : font;
   auto findResult = fontPaths.find(font);
-  if (findResult != fontPaths.end()) {
-    VImage::text(".", VImage::option()->set(
-                          "fontfile", (basePath + findResult->second).c_str()));
-  }
+  string fontResult =
+      findResult != fontPaths.end() ? basePath + findResult->second : "";
 
+  LoadFonts(basePath);
   VImage topImage;
   if (top_text != "") {
     string topText = "<span foreground=\"white\" background=\"black\">" +
                      top_text + "</span>";
 
-    topImage = VImage::text(
-        topText.c_str(),
+    VOption *topTextOptions =
         VImage::option()
             ->set("rgba", true)
             ->set("align", VIPS_ALIGN_CENTRE)
-            ->set("font", (font_string + " " + to_string(size)).c_str())
-            ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
-            ->set("width", textWidth));
+            ->set("width", textWidth)
+            ->set("font", (font_string + " " + to_string(size)).c_str());
+    if (fontResult != "") {
+      topTextOptions = topTextOptions->set(
+          "fontfile", (basePath + findResult->second).c_str());
+    }
+    topImage = VImage::text(topText.c_str(), topTextOptions);
   }
 
   VImage bottomImage;
@@ -55,18 +55,21 @@ ArgumentMap Motivate(string type, string *outType, char *BufferData,
     string bottomText = "<span foreground=\"white\" background=\"black\">" +
                         bottom_text + "</span>";
 
-    bottomImage = VImage::text(
-        bottomText.c_str(),
+    VOption *bottomTextOptions =
         VImage::option()
             ->set("rgba", true)
             ->set("align", VIPS_ALIGN_CENTRE)
-            ->set("font", (font_string + " " + to_string(size * 0.4)).c_str())
-            ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
-            ->set("width", textWidth));
+            ->set("width", textWidth)
+            ->set("font", (font_string + " " + to_string(size * 0.4)).c_str());
+    if (fontResult != "") {
+      bottomTextOptions = bottomTextOptions->set(
+          "fontfile", (basePath + findResult->second).c_str());
+    }
+    bottomImage = VImage::text(bottomText.c_str(), bottomTextOptions);
   }
 
   vector<VImage> img;
-  int height;
+  int height = 0;
   for (int i = 0; i < nPages; i++) {
     VImage img_frame =
         type == "gif" ? in.crop(0, i * pageHeight, width, pageHeight) : in;
@@ -114,13 +117,13 @@ ArgumentMap Motivate(string type, string *outType, char *BufferData,
                      .extract_band(0, VImage::option()->set("n", 3));
   final.set(VIPS_META_PAGE_HEIGHT, height);
 
-  void *buf;
+  char *buf;
   final.write_to_buffer(
-      ("." + *outType).c_str(), &buf, DataSize,
-      *outType == "gif" ? VImage::option()->set("dither", 1) : 0);
+      ("." + outType).c_str(), reinterpret_cast<void**>(&buf), &dataSize,
+      outType == "gif" ? VImage::option()->set("dither", 1) : 0);
 
   ArgumentMap output;
-  output["buf"] = (char *)buf;
+  output["buf"] = buf;
 
   return output;
 }

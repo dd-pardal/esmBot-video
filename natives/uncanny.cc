@@ -5,26 +5,25 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap Uncanny(string type, string *outType, char *BufferData,
-              size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
-  string caption = GetArgument<string>(Arguments, "caption");
-  string caption2 = GetArgument<string>(Arguments, "caption2");
-  string font = GetArgument<string>(Arguments, "font");
-  string path = GetArgument<string>(Arguments, "path");
-  string basePath = GetArgument<string>(Arguments, "basePath");
+ArgumentMap Uncanny(const string& type, string& outType, const char* bufferdata, size_t bufferLength, ArgumentMap arguments, size_t& dataSize)
+{
+  string caption = GetArgument<string>(arguments, "caption");
+  string caption2 = GetArgument<string>(arguments, "caption2");
+  string font = GetArgument<string>(arguments, "font");
+  string path = GetArgument<string>(arguments, "path");
+  string basePath = GetArgument<string>(arguments, "basePath");
 
   VOption *options = VImage::option()->set("access", "sequential");
 
   VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
+      VImage::new_from_buffer(bufferdata, bufferLength, "",
                               type == "gif" ? options->set("n", -1) : options)
           .colourspace(VIPS_INTERPRETATION_sRGB)
           .extract_band(0, VImage::option()->set("n", 3));
 
   VImage base = VImage::black(1280, 720, VImage::option()->set("bands", 3));
 
-  string font_string = (font == "roboto" ? "Roboto Condensed" : font) +
-                       ", Twemoji Color Font " +
+  string font_string = (font == "roboto" ? "Roboto Condensed" : font) + " " +
                        (font != "impact" ? "bold" : "normal") + " 72";
 
   string captionText =
@@ -33,34 +32,31 @@ ArgumentMap Uncanny(string type, string *outType, char *BufferData,
       "<span background=\"black\" foreground=\"red\">" + caption2 + "</span>";
 
   auto findResult = fontPaths.find(font);
-  if (findResult != fontPaths.end()) {
-    VImage::text(".", VImage::option()->set(
-                          "fontfile", (basePath + findResult->second).c_str()));
-  }
+  string fontResult =
+      findResult != fontPaths.end() ? basePath + findResult->second : "";
 
-  VImage text = VImage::text(
-      captionText.c_str(),
-      VImage::option()
-          ->set("rgba", true)
-          ->set("align", VIPS_ALIGN_CENTRE)
-          ->set("font", font_string.c_str())
-          ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
-          ->set("width", 588)
-          ->set("height", 90));
+  LoadFonts(basePath);
+  VImage text = VImage::text(captionText.c_str(),
+                             VImage::option()
+                                 ->set("rgba", true)
+                                 ->set("align", VIPS_ALIGN_CENTRE)
+                                 ->set("font", font_string.c_str())
+                                 ->set("fontfile", fontResult.c_str())
+                                 ->set("width", 588)
+                                 ->set("height", 90));
   VImage captionImage =
       text.extract_band(0, VImage::option()->set("n", 3))
           .gravity(VIPS_COMPASS_DIRECTION_CENTRE, 640, text.height() + 40,
                    VImage::option()->set("extend", "black"));
 
-  VImage text2 = VImage::text(
-      caption2Text.c_str(),
-      VImage::option()
-          ->set("rgba", true)
-          ->set("align", VIPS_ALIGN_CENTRE)
-          ->set("font", font_string.c_str())
-          ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
-          ->set("width", 588)
-          ->set("height", 90));
+  VImage text2 = VImage::text(caption2Text.c_str(),
+                              VImage::option()
+                                  ->set("rgba", true)
+                                  ->set("align", VIPS_ALIGN_CENTRE)
+                                  ->set("font", font_string.c_str())
+                                  ->set("fontfile", fontResult.c_str())
+                                  ->set("width", 588)
+                                  ->set("height", 90));
   VImage caption2Image =
       text2.extract_band(0, VImage::option()->set("n", 3))
           .gravity(VIPS_COMPASS_DIRECTION_CENTRE, 640, text.height() + 40,
@@ -92,13 +88,13 @@ ArgumentMap Uncanny(string type, string *outType, char *BufferData,
   VImage final = VImage::arrayjoin(img, VImage::option()->set("across", 1));
   final.set(VIPS_META_PAGE_HEIGHT, 720);
 
-  void *buf;
+  char *buf;
   final.write_to_buffer(
-      ("." + *outType).c_str(), &buf, DataSize,
-      *outType == "gif" ? VImage::option()->set("reoptimise", 1) : 0);
+      ("." + outType).c_str(), reinterpret_cast<void**>(&buf), &dataSize,
+      outType == "gif" ? VImage::option()->set("reoptimise", 1) : 0);
 
   ArgumentMap output;
-  output["buf"] = (char *)buf;
+  output["buf"] = buf;
 
   return output;
 }

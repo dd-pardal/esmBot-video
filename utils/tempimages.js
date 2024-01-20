@@ -1,4 +1,4 @@
-import * as logger from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { parseNumberWithMultipliers } from "../utils/number-parsing.js";
 import { readdir, lstat, rm, writeFile, stat } from "fs/promises";
 
@@ -45,7 +45,8 @@ export async function upload(client, result, context, interaction = false) {
   }
 }
 
-async function removeOldImages(size) {
+async function removeOldImages(s) {
+  let size = s;
   if (size > process.env.THRESHOLD) {
     const files = (await readdir(process.env.TEMPDIR)).map((file) => {
       return lstat(`${process.env.TEMPDIR}/${file}`).then((stats) => {

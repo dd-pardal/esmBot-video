@@ -69,24 +69,25 @@ Napi::Value ProcessImage(const Napi::CallbackInfo& info) {
     size_t length = 0;
     ArgumentMap outMap;
     if (obj.Has("data")) {
-      Napi::Buffer<char> data = obj.Has("data")
-                                    ? obj.Get("data").As<Napi::Buffer<char>>()
-                                    : Napi::Buffer<char>::New(env, 0);
-      outMap = FunctionMap.at(command)(type, &outType, data.Data(), data.Length(),
-                                    Arguments, &length);
+      Napi::Buffer<char> data = obj.Get("data").As<Napi::Buffer<char>>();
+      outMap = FunctionMap.at(command)(type, outType, data.Data(), data.Length(),
+                                    Arguments, length);
     } else {
-      outMap = NoInputFunctionMap.at(command)(type, &outType, Arguments, &length);
+      outMap = NoInputFunctionMap.at(command)(type, outType, Arguments, length);
     }
 
     vips_error_clear();
     vips_thread_shutdown();
 
-    char* buf = GetArgument<char*>(outMap, "buf");
+    if (length > 0) {
+      char* buf = GetArgument<char*>(outMap, "buf");
 
-    result.Set("data",
-               Napi::Buffer<char>::New(env, buf, length,
-                                       []([[maybe_unused]] Napi::Env env,
-                                          void* data) { free(data); }));
+      result.Set("data", Napi::Buffer<char>::Copy(env, buf, length));
+      g_free(buf);
+    } else {
+      result.Set("data", Napi::Buffer<char>::New(env, 0));
+    }
+    
     result.Set("type", outType);
   } catch (std::exception const& err) {
     Napi::Error::New(env, err.what()).ThrowAsJavaScriptException();
@@ -97,13 +98,18 @@ Napi::Value ProcessImage(const Napi::CallbackInfo& info) {
   return result;
 }
 
-Napi::Object Init(Napi::Env env, Napi::Object exports) {
+void ImgInit([[maybe_unused]] const Napi::CallbackInfo& info) {
 #if defined(WIN32) && defined(MAGICK_ENABLED)
   Magick::InitializeMagick("");
 #endif
   if (vips_init("")) vips_error_exit(NULL);
+  return;
+}
+
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "image"),
-              Napi::Function::New(env, ProcessImage));  // new function handler
+              Napi::Function::New(env, ProcessImage));
+  exports.Set(Napi::String::New(env, "imageInit"), Napi::Function::New(env, ImgInit));
 
   Napi::Array arr = Napi::Array::New(env);
   size_t i = 0;

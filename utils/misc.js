@@ -1,12 +1,12 @@
 import util from "util";
-import fs from "fs";
-import pm2 from "pm2";
+const pm2 = process.env.PM2_USAGE ? (await import("pm2")).default : null;
 import { config } from "dotenv";
 import db from "./database.js";
+import { servers } from "./image.js";
 
 // playing messages
-const { messages } = JSON.parse(fs.readFileSync(new URL("../config/messages.json", import.meta.url)));
-const { types } = JSON.parse(fs.readFileSync(new URL("../config/commands.json", import.meta.url)));
+import messagesConfig from "../config/messages.json" assert { type: "json" };
+import commandsConfig from "../config/commands.json" assert { type: "json" };
 
 let broadcast = false;
 
@@ -21,7 +21,8 @@ const optionalReplace = (token) => {
 };
 
 // clean(text) to clean message of any private info or mentions
-export function clean(text) {
+export function clean(input) {
+  let text = input;
   if (typeof text !== "string")
     text = util.inspect(text, { depth: 1 });
 
@@ -31,10 +32,9 @@ export function clean(text) {
 
   let { parsed } = config();
   if (!parsed) parsed = process.env;
-  const imageServers = JSON.parse(fs.readFileSync(new URL("../config/servers.json", import.meta.url), { encoding: "utf8" })).image;
 
-  if (imageServers?.length !== 0) {
-    for (const { server, auth } of imageServers) {
+  if (servers?.length !== 0) {
+    for (const { server, auth } of servers) {
       text = text.replaceAll(server, optionalReplace(server));
       text = text.replaceAll(auth, optionalReplace(auth));
     }
@@ -57,7 +57,7 @@ export async function activityChanger(bot) {
   if (!broadcast) {
     await bot.editStatus("dnd", [{
       type: 0,
-      name: random(messages) + (types.classic ? ` | @${bot.user.username} help` : "")
+      name: random(messagesConfig.messages) + (commandsConfig.types.classic ? ` | @${bot.user.username} help` : "")
     }]);
   }
   setTimeout(() => activityChanger(bot), 900000);
@@ -76,7 +76,7 @@ export async function checkBroadcast(bot) {
 export function startBroadcast(bot, message) {
   bot.editStatus("dnd", [{
     type: 0,
-    name: message + (types.classic ? ` | @${bot.user.username} help` : "")
+    name: message + (commandsConfig.types.classic ? ` | @${bot.user.username} help` : "")
   }]);
   broadcast = true;
 }
@@ -84,7 +84,7 @@ export function startBroadcast(bot, message) {
 export function endBroadcast(bot) {
   bot.editStatus("dnd", [{
     type: 0,
-    name: random(messages) + (types.classic ? ` | @${bot.user.username} help` : "")
+    name: random(messagesConfig.messages) + (commandsConfig.types.classic ? ` | @${bot.user.username} help` : "")
   }]);
   broadcast = false;
 }
@@ -92,7 +92,7 @@ export function endBroadcast(bot) {
 export function getServers(bot) {
   return new Promise((resolve, reject) => {
     if (process.env.PM2_USAGE) {
-      pm2.launchBus((err, pm2Bus) => {
+      pm2.launchBus((_err, pm2Bus) => {
         const listener = (packet) => {
           if (packet.data?.type === "countResponse") {
             resolve(packet.data.serverCount);

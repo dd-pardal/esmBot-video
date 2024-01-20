@@ -4,10 +4,10 @@ Here are some instructions to get esmBot up and running from source.
 ## Recommended system requirements
     - 64-bit CPU/operating system
     - Quad-core CPU or better
-    - 1GB or more of RAM
-    - Linux-based operating system or virtual machine ([Ubuntu 22.04 LTS](https://ubuntu.com/download/server) or [Fedora 36](https://getfedora.org/) are recommended)
+    - 512MB or more of RAM
+    - Linux-based operating system or virtual machine ([Ubuntu](https://ubuntu.com/download/server) or [Fedora](https://getfedora.org/) are recommended)
 
-**Warning:** If you want to run the bot on Windows, [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10) is recommended. This guide is somewhat Linux-centric, so for now you're mostly on your own if you decide not to use WSL.
+**Warning:** If you want to run the bot on Windows, [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) is recommended. This guide is somewhat Linux-centric, so for now you're mostly on your own if you decide not to use WSL.
 
 **Tip:** You can run the bot using Docker for a somewhat simpler setup experience. [Click here to go to the Docker setup guide.](https://docs.esmbot.net/docker)
 
@@ -19,7 +19,7 @@ Choose the distro you're using below for insallation instructions.
 These instructions apply to Debian version 12 (bookworm) or Ubuntu version 22.04 (jammy) or later.
 
 ```sh
-sudo apt-get install git curl build-essential cmake ttf-mscorefonts-installer libmagick++-dev libvips-dev libcgif-dev libgirepository1.0-dev fonts-noto-color-emoji libimagequant-dev libvpx-dev libopus-dev libx264-dev libssl-dev
+sudo apt-get install git curl build-essential cmake ttf-mscorefonts-installer libmagick++-dev libvips-dev libcgif-dev libgirepository1.0-dev libimagequant-dev libzxingcore-dev libvpx-dev libopus-dev libx264-dev libssl-dev
 ```
 
 Additionally, if your architecture is x86 or x86_64, run:
@@ -40,11 +40,15 @@ Some of these packages require that you add the RPM Fusion and/or EPEL repositor
 **TODO: Update with the packages necessary for video support.**
 
 ```sh
-sudo dnf install git curl cmake ffmpeg sqlite gcc-c++ libcgif-devel ImageMagick-c++-devel vips-devel libimagequant-devel gobject-introspection-devel google-noto-emoji-color-fonts meson
+sudo dnf install git curl cmake ffmpeg sqlite gcc-c++ libcgif-devel ImageMagick-c++-devel vips-devel libimagequant-devel gobject-introspection-devel meson cabextract zxing-cpp-devel
 ```
 
 On RHEL-based distros like AlmaLinux and Rocky Linux, you may need to add [Remi's RPM Repository](https://rpms.remirepo.net) for the vips package.
-
+    
+Some fonts used in the bot (e.g. Impact) require installing the MS Core Fonts package, which is unavailable through most RHEL repositories. You can install it using the following command (you're on your own regarding dependencies, each RHEL derivative handles them differently):
+```sh
+sudo rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+```
 
 ### Alpine
 
@@ -88,18 +92,26 @@ sudo meson install
 
 ### 3. Install Node.js.
 
-Node.js is the runtime that esmBot is built on top of. The bot requires version 16 or above to run.
+Node.js is the runtime that esmBot is built on top of. The bot requires version 18 or above to run, but version 20 is recommended.
 
-First things first, we'll need to install pnpm, the package manager used by the bot. Run the following to install it:
+We suggest using nvm to manage your Node.js install. Run the following command to install it:
 ```sh
-curl -fsSL https://get.pnpm.io/install.sh | sh -
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 ```
 
-Then, install Node.js version 16:
-
+Then run the following to install Node.js:
 ```sh
-pnpm env use --global 16
+nvm install 20
+nvm use 20
 ```
+
+esmBot uses the pnpm package manager to manage dependencies and run build scripts. You can use Corepack (a tool included with Node.js) to install it:
+```sh
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+***
 
 ### 4. Set up the database.
 
@@ -124,13 +136,13 @@ pnpm build
 
 ### 6. (Optional) Set up Lavalink.
 
-Lavalink is the audio server used by esmBot for soundboard commands and music playback. If you do not plan on using these features, you can safely skip this step.
+Lavalink is the audio server used by esmBot for music playback. If you do not plan on using this feature, you can safely skip this step.
 
 **Warning:** There are websites out there providing lists of public Lavalink instances that can be used with the bot. However, these are not recommended due to performance/security concerns and missing features, and it is highly recommended to set one up yourself instead using the steps below.
 
-Lavalink requires a Java (11 or later) installation. You can use [SDKMAN](https://sdkman.io) to install Eclipse Temurin, a popular Java distribution:
+esmBot requires Lavalink version v4 or later, which requires a Java (17 or later) installation. You can use [SDKMAN](https://sdkman.io) to install Eclipse Temurin, a popular Java distribution:
 ```sh
-sdk install java 11.0.15-tem
+sdk install java 17.0.9-tem
 ```
 
 Initial setup is like this:
@@ -138,13 +150,13 @@ Initial setup is like this:
 cd ~
 mkdir Lavalink
 cd Lavalink
-curl -OL https://github.com/freyacodes/Lavalink/releases/latest/download/Lavalink.jar
+curl -OL https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar
 cp ~/esmBot/application.yml .
 ln -s ~/esmBot/assets assets
 ```
 To run Lavalink, you can use this command:
 ```sh
-java -Djdk.tls.client.protocols=TLSv1.2 -jar Lavalink.jar
+java -jar Lavalink.jar
 ```
 
 You'll need to run Lavalink alongside the bot in order to use it. There are a few methods to do this, such as the `screen` command, creating a new systemd service, or simply just opening a new terminal session alongside your current one.
@@ -191,7 +203,12 @@ Once you've done that, you can start the bot using the following command:
 pm2 start ecosystem.config.cjs
 ```
 
-If you wish to update the bot to the latest version/commit at any time, just run `git pull` and `pnpm install`.
+**Tip:** If you wish to update the bot to the latest version/commit at any time, run the following commands:
+```sh
+git pull
+pnpm install
+pnpm build
+```
 
 ## Troubleshooting
 

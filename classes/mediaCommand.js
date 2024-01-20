@@ -2,10 +2,9 @@ import Command from "./command.js";
 import mediaDetect from "../utils/media-detection.js";
 import { runImageJob } from "../utils/image.js";
 import { runningCommands } from "../utils/collections.js";
-import { readFileSync } from "fs";
-const { emotes } = JSON.parse(readFileSync(new URL("../config/messages.json", import.meta.url)));
-import { random } from "../utils/misc.js";
+import { clean, random } from "../utils/misc.js";
 import { selectedImages } from "../utils/collections.js";
+import messages from "../config/messages.json" assert { type: "json" };
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { readFile, rm, stat } from "fs/promises";
@@ -42,7 +41,7 @@ class MediaCommand extends Command {
     const timestamp = this.type === "classic" ? this.message.createdAt : Math.floor((this.interaction.id / 4194304) + 1420070400000);
     // check if this command has already been run in this channel with the same arguments, and we are awaiting its result
     // if so, don't re-run it
-    if (runningCommands.has(this.author.id) && (new Date(runningCommands.get(this.author.id)) - new Date(timestamp)) < 5000) {
+    if (runningCommands.has(this.author.id) && (new Date(runningCommands.get(this.author.id)).getTime() - new Date(timestamp).getTime()) < 5000) {
       return "Please slow down a bit.";
     }
     // before awaiting the command result, add this command to the set of running commands
@@ -56,11 +55,8 @@ class MediaCommand extends Command {
       try {
         const selection = selectedImages.get(this.author.id);
         media = selection ?? await mediaDetect(this.client, this.message, this.interaction, this.options, true, this.ffmpegOnly).catch(e => {
-          if (e.name === "AbortError") {
-            return { type: "timeout" };
-          } else {
-            throw e;
-          }
+          if (e.name === "AbortError") return { type: "timeout" };
+          throw e
         });
         if (selection) selectedImages.delete(this.author.id);
         if (media === undefined) {
@@ -74,7 +70,7 @@ class MediaCommand extends Command {
           return "I've been rate-limited by Tenor. Please try uploading your GIF elsewhere.";
         } else if (media.type === "timeout") {
           runningCommands.delete(this.author.id);
-          return "The request to get that image timed out. Please try again or use another image.";
+          return "The request to get that image timed out. Please try again, upload your image elsewhere, or use another image.";
         }
       } catch (e) {
         runningCommands.delete(this.author.id);
@@ -84,20 +80,20 @@ class MediaCommand extends Command {
 
     if (this.constructor.requiresText) {
       const text = this.options.text ?? this.args.join(" ").trim();
-      if (text.length === 0 || !await this.criteria(text, media.url)) {
+      if (text.length === 0 || !await this.criteria(text, media?.url)) {
         runningCommands.delete(this.author.id);
         return this.constructor.noText;
       }
     }
 
-    if (media.mediaType === "video" && !this.constructor.acceptsVideo) {
+    if (media?.mediaType === "video" && !this.constructor.acceptsVideo) {
       runningCommands.delete(this.author.id);
       return `This command only supports ${this.constructor.requiresGIF ? "" : "images and "}GIFs.`;
     }
 
     let status;
 
-    if (this.constructor.ffmpegOnly || media.mediaType === "video") {
+    if (this.constructor.ffmpegOnly || media?.mediaType === "video") {
       const params = this?.ffmpegParams(media.url) ?? {};
 
       let format = params.format ?? this.options.format;
@@ -227,6 +223,24 @@ class MediaCommand extends Command {
         id: (this.interaction ?? this.message).id
       };
 
+      if (this.constructor.requiresImage) {
+        imageParams.path = media.path;
+        imageParams.params.type = media.type;
+        imageParams.url = media.url; // technically not required but can be useful for text filtering
+        imageParams.name = media.name;
+        if (this.constructor.requiresGIF) imageParams.onlyGIF = true;
+      }
+
+      if (typeof this.params === "function") {
+        Object.assign(imageParams.params, this.params(imageParams.url, imageParams.name));
+      } else if (typeof this.params === "object") {
+        Object.assign(imageParams.params, this.params);
+      }
+
+      if (media?.type === "image/gif" && this.type === "classic") {
+        status = await this.processMessage(this.message.channel ?? await this.client.rest.channels.get(this.message.channelID));
+      }
+
       if (this.options.format) {
         if (allowedImageOutTypes.has(this.options.format)) {
           imageParams.params.outType = this.options.format;
@@ -235,28 +249,15 @@ class MediaCommand extends Command {
         }
       }
 
-      imageParams.path = media.path;
-      imageParams.params.type = media.type;
-      imageParams.url = media.url; // technically not required but can be useful for text filtering
-      imageParams.name = media.name;
-      if (this.constructor.requiresGIF) imageParams.onlyGIF = true;
-
-      if (typeof this.params === "function") {
-        Object.assign(imageParams.params, this.params(imageParams.url, imageParams.name));
-      } else if (typeof this.params === "object") {
-        Object.assign(imageParams.params, this.params);
-      }
-
-      if (media.type === "image/gif" && this.type === "classic") {
-        status = await this.processMessage(this.message.channel ?? await this.client.rest.channels.get(this.message.channelID));
-      }
-
       return limiter.runWhenFree(async () => {
         try {
           const { buffer, type } = await runImageJob(imageParams);
+          if (type === "ratelimit") return "I've been ratelimited by the server hosting that image. Try uploading your image somewhere else.";
           if (type === "nocmd") return "That command isn't supported on this instance of esmBot.";
           if (type === "nogif" && this.constructor.requiresGIF) return "That isn't a GIF!";
+          if (type === "empty") return this.constructor.empty;
           this.success = true;
+          if (type === "text") return `\`\`\`\n${await clean(buffer.toString("utf8"))}\n\`\`\``;
           return {
             contents: buffer,
             name: `${this.constructor.command}.${type}`
@@ -280,7 +281,7 @@ class MediaCommand extends Command {
 
   processMessage(channel) {
     return channel.createMessage({
-      content: `${random(emotes) || process.env.PROCESSING_EMOJI || "<a:processing:479351417102925854>"} Processing... This might take a while`
+      content: `${random(messages.emotes) || process.env.PROCESSING_EMOJI || "<a:processing:479351417102925854>"} Processing... This might take a while`
     });
   }
 
@@ -323,6 +324,7 @@ class MediaCommand extends Command {
   static ffmpegOnly = false;
   static noImage = "You need to provide an image/GIF!";
   static noText = "You need to provide some text!";
+  static empty = "The resulting output was empty!";
   static command = "";
 }
 

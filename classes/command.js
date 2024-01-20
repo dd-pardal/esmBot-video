@@ -14,7 +14,7 @@ class Command {
       this.guild = options.message.guild;
       this.author = options.message.author;
       this.member = options.message.member;
-      this.permissions = this.channel ? this.channel.permissionsOf(client.user.id.toString()) : Constants.AllTextPermissions;
+      this.permissions = this.channel?.permissionsOf?.(client.user.id) ?? Constants.AllTextPermissions;
       this.content = options.content;
       this.options = options.specialArgs;
       this.reference = {
@@ -31,7 +31,7 @@ class Command {
     } else if (options.type === "application") {
       this.interaction = options.interaction;
       this.args = [];
-      this.channel = options.interaction.channel ?? { id: options.interaction.channelID };
+      this.channel = options.interaction.channel ?? { id: options.interaction.channelID, guildID: options.interaction.guildID };
       this.guild = options.interaction.guild;
       this.author = this.member = options.interaction.guildID ? options.interaction.member : options.interaction.user;
       this.permissions = options.interaction.appPermissions;
@@ -66,7 +66,7 @@ class Command {
 
   static description = "No description found";
   static aliases = [];
-  static arguments = [];
+  static args = [];
   static flags = [];
   static slashAllowed = true;
   static directAllowed = true;

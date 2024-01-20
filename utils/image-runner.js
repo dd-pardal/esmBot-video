@@ -11,16 +11,16 @@ const relPath = `../build/${process.env.DEBUG && process.env.DEBUG === "true" ? 
 const img = nodeRequire(relPath);
 
 const enumMap = {
-  "forget": 0,
-  "northwest": 1,
-  "north": 2,
-  "northeast": 3,
-  "west": 4,
-  "center": 5,
-  "east": 6,
-  "southwest": 7,
-  "south": 8,
-  "southeast": 9
+  forget: 0,
+  northwest: 1,
+  north: 2,
+  northeast: 3,
+  west: 4,
+  center: 5,
+  east: 6,
+  southwest: 7,
+  south: 8,
+  southeast: 9
 };
 
 export default function run(object) {
@@ -40,6 +40,13 @@ export default function run(object) {
       promise = new Promise((res, rej) => {
         const req = (object.path.startsWith("https") ? https.request : http.request)(object.path);
         req.once("response", (resp) => {
+          if (resp.statusCode === 429) {
+            req.end();
+            return resolve({
+              buffer: Buffer.alloc(0),
+              fileExtension: "ratelimit"
+            });
+          }
           const buffers = [];
           resp.on("data", (chunk) => {
             buffers.push(chunk);
@@ -89,4 +96,6 @@ if (!isMainThread) {
       // turn promise rejection into normal error
       throw err;
     });
+} else {
+  img.imageInit();
 }

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <fontconfig/fontconfig.h>
+
+#include <iostream>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -15,71 +18,24 @@ using std::variant;
 typedef variant<char*, string, float, bool, int> ArgumentVariant;
 typedef map<string, ArgumentVariant> ArgumentMap;
 
-#include "blur.h"
-#include "bounce.h"
-#include "caption.h"
-#include "caption2.h"
-#include "circle.h"
-#include "colors.h"
-#include "crop.h"
-#include "deepfry.h"
-#include "explode.h"
-#include "flag.h"
-#include "flip.h"
-#include "freeze.h"
-#include "gamexplain.h"
-#include "globe.h"
-#include "homebrew.h"
-#include "invert.h"
-#include "jpeg.h"
-#include "magik.h"
-#include "meme.h"
-#include "mirror.h"
-#include "motivate.h"
-#include "reddit.h"
-#include "resize.h"
-#include "reverse.h"
-#include "scott.h"
-#include "snapchat.h"
-#include "sonic.h"
-#include "speed.h"
-#include "spin.h"
-#include "spotify.h"
-#include "squish.h"
-#include "swirl.h"
-#include "tile.h"
-#include "uncanny.h"
-#include "uncaption.h"
-#include "wall.h"
-#include "watermark.h"
-#include "whisper.h"
+#include "commands.h"
+
+void LoadFonts(string basePath);
+#define MapContainsKey(MAP, KEY) (MAP.find(KEY) != MAP.end())
 
 template <typename T>
 T GetArgument(ArgumentMap map, string key) {
-  try {
-    return std::get<T>(map.at(key));
-  } catch (std::bad_variant_access&) {
+  if (!MapContainsKey(map, key))
     throw "Invalid requested type from variant.";
-  }
+  return std::get<T>(map.at(key));
 }
 
 template <typename T>
 T GetArgumentWithFallback(ArgumentMap map, string key, T fallback) {
-  try {
-    return std::get<T>(map.at(key));
-  } catch (...) {  // this is, not great...
+  if (!MapContainsKey(map, key))
     return fallback;
-  }
+  return std::get<T>(map.at(key));
 }
-
-#define MAP_HAS(ARRAY, KEY) (ARRAY.count(KEY) > 0)
-#define MAP_GET(ARRAY, KEY, TYPE)                 \
-  (MAP_HAS(ARRAY, KEY) ? get<TYPE>(ARRAY.at(KEY)) \
-                       : NULL)  // C++ has forced my hand
-#define MAP_GET_FALLBACK(ARRAY, KEY, TYPE, FALLBACK) \
-  (MAP_HAS(ARRAY, KEY) ? get<TYPE>(ARRAY.at(KEY)) : FALLBACK)
-
-#define ARG_TYPES std::variant<string, bool, int, float>
 
 const std::vector<double> zeroVec = {0, 0, 0, 0};
 const std::vector<double> zeroVecOneAlpha = {0, 0, 0, 1};
@@ -90,9 +46,9 @@ const std::unordered_map<std::string, std::string> fontPaths{
     {"roboto", "assets/fonts/reddit.ttf"}};
 
 const std::map<std::string,
-               ArgumentMap (*)(string type, string* outType, char* BufferData,
-                               size_t BufferLength, ArgumentMap Arguments,
-                               size_t* DataSize)>
+               ArgumentMap (*)(const string& type, string& outType, const char* bufferData,
+                               size_t bufferLength, ArgumentMap arguments,
+                               size_t& dataSize)>
     FunctionMap = {{"blur", &Blur},
                    {"bounce", &Bounce},
                    {"caption", &Caption},
@@ -103,42 +59,49 @@ const std::map<std::string,
                    {"colors", &Colors},
                    {"crop", &Crop},
                    {"deepfry", &Deepfry},
-                   {"explode", &Explode},
+                   {"distort", &Distort},
                    {"flag", &Flag},
                    {"flip", &Flip},
                    {"freeze", &Freeze},
-                   {"gamexplain", Gamexplain},
-                   {"globe", Globe},
-                   {"invert", Invert},
-                   {"jpeg", Jpeg},
+                   {"gamexplain", &Gamexplain},
+                   {"globe", &Globe},
+                   {"invert", &Invert},
+                   {"jpeg", &Jpeg},
 #ifdef MAGICK_ENABLED
-                   {"magik", Magik},
+                   {"magik", &Magik},
 #endif
-                   {"meme", Meme},
-                   {"mirror", Mirror},
-                   {"motivate", Motivate},
-                   {"reddit", Reddit},
-                   {"resize", Resize},
-                   {"reverse", Reverse},
-                   {"scott", Scott},
-                   {"snapchat", Snapchat},
+                   {"meme", &Meme},
+                   {"mirror", &Mirror},
+                   {"motivate", &Motivate},
+#ifdef ZXING_ENABLED
+                   {"qrread", &QrRead},
+#endif
+                   {"reddit", &Reddit},
+                   {"resize", &Resize},
+                   {"reverse", &Reverse},
+                   {"scott", &Scott},
+                   {"snapchat", &Snapchat},
                    {"speed", &Speed},
 #ifdef MAGICK_ENABLED
-                   {"spin", Spin},
+                   {"spin", &Spin},
 #endif
                    {"spotify", &Spotify},
-                   {"squish", Squish},
-                   {"swirl", Swirl},
-                   {"tile", Tile},
-                   {"uncanny", Uncanny},
+                   {"squish", &Squish},
+                   {"swirl", &Swirl},
+                   {"tile", &Tile},
+                   {"uncanny", &Uncanny},
                    {"uncaption", &Uncaption},
 #if MAGICK_ENABLED
-                   {"wall", Wall},
+                   {"wall", &Wall},
 #endif
                    {"watermark", &Watermark},
-                   {"whisper", Whisper}};
+                   {"whisper", &Whisper}};
 
 const std::map<std::string,
-               ArgumentMap (*)(string type, string* outType,
-                               ArgumentMap Arguments, size_t* DataSize)>
-    NoInputFunctionMap = {{"homebrew", Homebrew}, {"sonic", Sonic}};
+               ArgumentMap (*)(const string& type, string& outType,
+                               ArgumentMap arguments, size_t& dataSize)>
+    NoInputFunctionMap = {{"homebrew", &Homebrew},
+#if ZXING_ENABLED
+    {"qrcreate", &QrCreate},
+#endif
+    {"sonic", &Sonic}};

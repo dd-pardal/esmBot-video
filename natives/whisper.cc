@@ -5,16 +5,15 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap Whisper(string type, string *outType, char *BufferData,
-                    size_t BufferLength, ArgumentMap Arguments,
-                    size_t *DataSize) {
-  string caption = GetArgument<string>(Arguments, "caption");
-  string basePath = GetArgument<string>(Arguments, "basePath");
+ArgumentMap Whisper(const string& type, string& outType, const char* bufferdata, size_t bufferLength, ArgumentMap arguments, size_t& dataSize)
+{
+  string caption = GetArgument<string>(arguments, "caption");
+  string basePath = GetArgument<string>(arguments, "basePath");
 
   VOption *options = VImage::option()->set("access", "sequential");
 
   VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
+      VImage::new_from_buffer(bufferdata, bufferLength, "",
                               type == "gif" ? options->set("n", -1) : options)
           .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
@@ -25,22 +24,20 @@ ArgumentMap Whisper(string type, string *outType, char *BufferData,
   int size = width / 6;
   double rad = (double)size / 24;
 
-  string font_string = "Upright, Twemoji Color Font " + to_string(size);
+  string font_string = "Upright " + to_string(size);
 
   VImage mask =
       VImage::gaussmat(rad / 2, 0.1, VImage::option()->set("separable", true)) *
       8;
 
+  LoadFonts(basePath);
   VImage textIn = VImage::text(
-      ".", VImage::option()->set(
-               "fontfile", (basePath + "assets/fonts/whisper.otf").c_str()));
-  textIn = VImage::text(
       ("<span foreground=\"white\">" + caption + "</span>").c_str(),
       VImage::option()
           ->set("rgba", true)
           ->set("align", VIPS_ALIGN_CENTRE)
           ->set("font", font_string.c_str())
-          ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
+          ->set("fontfile", (basePath + "assets/fonts/whisper.otf").c_str())
           ->set("width", width));
 
   textIn = textIn.embed(rad, rad, textIn.width() + 2 * rad,
@@ -59,15 +56,15 @@ ArgumentMap Whisper(string type, string *outType, char *BufferData,
                           .replicate(1, nPages);
   VImage final = in.composite(replicated, VIPS_BLEND_MODE_OVER);
 
-  void *buf;
+  char *buf;
   final.write_to_buffer(
-      ("." + *outType).c_str(), &buf, DataSize,
-      *outType == "gif"
+      ("." + outType).c_str(), reinterpret_cast<void**>(&buf), &dataSize,
+      outType == "gif"
           ? VImage::option()->set("dither", 0)->set("reoptimise", 1)
           : 0);
 
   ArgumentMap output;
-  output["buf"] = (char *)buf;
+  output["buf"] = buf;
 
   return output;
 }

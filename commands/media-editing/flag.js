@@ -1,6 +1,5 @@
 import fs from "fs";
 import emojiRegex from "emoji-regex";
-import emoji from "node-emoji";
 import MediaCommand from "../../classes/mediaCommand.js";
 
 class FlagCommand extends MediaCommand {
@@ -8,9 +7,9 @@ class FlagCommand extends MediaCommand {
 
   async criteria() {
     const text = this.options.text ?? this.args[0];
-    if (!text.match(emojiRegex())) return false;
-    const flag = emoji.unemojify(text).replaceAll(":", "").replace("flag-", "");
-    let path = `assets/images/region-flags/png/${flag.toUpperCase()}.png`;
+    const matched = text.match(emojiRegex());
+    if (!matched) return false;
+    const flag = this.ccFromFlag(matched[0]);    let path = `assets/images/region-flags/png/${flag.toUpperCase()}.png`;
     if (flag === "pirate_flag") path = "assets/images/pirateflag.png";
     if (flag === "rainbow-flag") path = "assets/images/rainbowflag.png";
     if (flag === "checkered_flag") path = "assets/images/checkeredflag.png";
@@ -27,6 +26,11 @@ class FlagCommand extends MediaCommand {
     }
   }
 
+  ccFromFlag(flag) {
+    const codepoints = [...flag].map(c => c.codePointAt() - 127397);
+    return String.fromCodePoint(...codepoints);
+  }
+
   params() {
     return {
       overlay: this.flagPath
@@ -34,7 +38,7 @@ class FlagCommand extends MediaCommand {
   }
 
   static description = "Overlays a flag onto an image";
-  static arguments = ["[flag]"];
+  static args = ["[flag]"];
 
   static requiresText = true;
   static noText = "You need to provide an emoji of a flag to overlay!";

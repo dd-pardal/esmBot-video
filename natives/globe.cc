@@ -5,17 +5,15 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap Globe(string type, string *outType, char *BufferData, size_t BufferLength,
-            ArgumentMap Arguments, size_t *DataSize) {
-  string basePath = GetArgument<string>(Arguments, "basePath");
-
-  VOption *options = VImage::option();
+ArgumentMap Globe(const string& type, string& outType, const char* bufferdata, size_t bufferLength, ArgumentMap arguments, size_t& dataSize)
+{
+  string basePath = GetArgument<string>(arguments, "basePath");
 
   VImage in =
       VImage::new_from_buffer(
-          BufferData, BufferLength, "",
-          type == "gif" ? options->set("n", -1)->set("access", "sequential")
-                         : options)
+          bufferdata, bufferLength, "",
+          type == "gif" ? VImage::option()->set("n", -1)->set("access", "sequential")
+                         : 0)
           .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
 
@@ -66,13 +64,13 @@ ArgumentMap Globe(string type, string *outType, char *BufferData, size_t BufferL
     final.set("delay", delay);
   }
 
-  void *buf;
-  final.write_to_buffer(".gif", &buf, DataSize);
+  char *buf;
+  final.write_to_buffer(".gif", reinterpret_cast<void**>(&buf), &dataSize);
 
-  *outType = "gif";
+  outType = "gif";
 
   ArgumentMap output;
-  output["buf"] = (char *)buf;
+  output["buf"] = buf;
 
   return output;
 }

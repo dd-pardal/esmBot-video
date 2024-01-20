@@ -1,4 +1,4 @@
-import { request } from "undici";
+import { PrivateChannel, TextableChannel, ThreadChannel } from "oceanic.js";
 import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
 
 const tenorURLs = [
@@ -42,17 +42,17 @@ export async function getType(image, extraReturnTypes, video) {
     controller.abort();
   }, 10_000);
   try {
-    const imageRequest = await request(image, {
+    const imageRequest = await fetch(image, {
       signal: controller.signal,
       method: "HEAD"
     });
     clearTimeout(timeout);
-    const size = imageRequest.headers["content-range"] ? imageRequest.headers["content-range"].split("/")[1] : imageRequest.headers["content-length"];
+    const size = imageRequest.headers.has("content-range") ? imageRequest.headers.get("content-range").split("/")[1] : imageRequest.headers.get("content-length");
     if (parseInt(size) > 41943040 && extraReturnTypes && !video) { // 40 MB
       type = "large";
       return type;
     }
-    const typeHeader = imageRequest.headers["content-type"];
+    const typeHeader = imageRequest.headers.get("content-type");
     if (typeHeader) {
       type = typeHeader;
     } else {
@@ -60,14 +60,14 @@ export async function getType(image, extraReturnTypes, video) {
       timeout = setTimeout(() => {
         controller.abort();
       }, 10_000);
-      const bufRequest = await request(image, {
+      const bufRequest = await fetch(image, {
         signal: controller.signal,
         headers: {
           range: "bytes=0-1023"
         }
       });
       clearTimeout(timeout);
-      const imageBuffer = await bufRequest.body.arrayBuffer();
+      const imageBuffer = await bufRequest.arrayBuffer();
       const imageType = await fileTypeFromBuffer(imageBuffer);
       if (imageType) {
         type = imageType.mime;
@@ -109,11 +109,11 @@ const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, ty
           if (image2.includes("tenor.com/view/")) {
             id = image2.split("-").pop();
           } else if (image2.endsWith(".gif")) {
-            const redirect = (await request(image2, { method: "HEAD" })).headers.location;
+            const redirect = (await fetch(image2, { method: "HEAD", redirect: "manual" })).headers.get("location");
             id = redirect.split("-").pop();
           }
-          const data = await request(`https://tenor.googleapis.com/v2/posts?ids=${id}&media_filter=gif&limit=1&client_key=esmBot%20${process.env.ESMBOT_VER}&key=${process.env.TENOR}`);
-          if (data.statusCode === 429) {
+          const data = await fetch(`https://tenor.googleapis.com/v2/posts?ids=${id}&media_filter=gif&limit=1&client_key=esmBot%20${process.env.ESMBOT_VER}&key=${process.env.TENOR}`);
+          if (data.status === 429) {
             if (extraReturnTypes) {
               payload.type = "tenorlimit";
               return payload;
@@ -121,7 +121,7 @@ const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, ty
               return;
             }
           }
-          const json = await data.body.json();
+          const json = await data.json();
           if (json.error) throw Error(json.error.message);
           payload.path = json.results[0].media_formats.gif.url;
         }
@@ -221,7 +221,9 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
   if (!singleMessage) {
     // if there aren't any replies or interaction attachments then iterate over the last few messages in the channel
     const channel = (interaction ? interaction : cmdMessage).channel ?? await client.rest.channels.get((interaction ? interaction : cmdMessage).channelID);
-    const messages = await channel.getMessages();
+    if (!(channel instanceof TextableChannel) && !(channel instanceof ThreadChannel) && !(channel instanceof PrivateChannel)) return;
+    const perms = (channel instanceof TextableChannel || channel instanceof ThreadChannel) ? channel.permissionsOf?.(client.user.id) : null;
+    if (perms && !perms.has("VIEW_CHANNEL")) return;    const messages = await channel.getMessages();
     // iterate over each message
     for (const message of messages) {
       const result = await checkMessageForMedia(message, extraReturnTypes, video, sticker);

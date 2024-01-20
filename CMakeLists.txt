@@ -1,11 +1,64 @@
 cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0091 NEW)
 cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0135 NEW)
 project(image)
 
 include(FindPkgConfig)
+include(FetchContent)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-file(GLOB SOURCE_FILES "natives/*.cc" "natives/*.h")
+set(SOURCE_FILES natives/blur.cc
+  natives/bounce.cc
+  natives/caption.cc
+  natives/caption2.cc
+  natives/colors.cc
+  natives/commands.h
+  natives/common.cc
+  natives/common.h
+  natives/crop.cc
+  natives/deepfry.cc
+  natives/distort.cc
+  natives/flag.cc
+  natives/flip.cc
+  natives/freeze.cc
+  natives/gamexplain.cc
+  natives/globe.cc
+  natives/homebrew.cc
+  natives/invert.cc
+  natives/jpeg.cc
+  natives/meme.cc
+  natives/mirror.cc
+  natives/motivate.cc
+  natives/reddit.cc
+  natives/resize.cc
+  natives/reverse.cc
+  natives/scott.cc
+  natives/snapchat.cc
+  natives/sonic.cc
+  natives/speed.cc
+  natives/spotify.cc
+  natives/squish.cc
+  natives/swirl.cc
+  natives/tile.cc
+  natives/uncanny.cc
+  natives/uncaption.cc
+  natives/watermark.cc
+  natives/whisper.cc)
+
+option(WITH_MAGICK "Build the functions that still depend on ImageMagick" OFF)
+option(WITH_ZXING "Build with zxing-cpp, enables the qrcreate and qrread commands" ON)
+
+if (WITH_MAGICK)
+  list(APPEND SOURCE_FILES natives/circle.cc
+    natives/magik.cc
+    natives/spin.cc
+    natives/wall.cc)
+endif()
+
+if (WITH_ZXING)
+  list(APPEND SOURCE_FILES natives/qr.cc)
+endif()
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
@@ -21,8 +74,7 @@ if(CMAKE_JS_VERSION)
   target_link_libraries(${PROJECT_NAME}-c ${PROJECT_NAME})
   target_compile_features(${PROJECT_NAME}-c PRIVATE cxx_std_17)
 else()
-  add_executable(${PROJECT_NAME}-cli natives/cli/image.cc)
-  target_compile_features(${PROJECT_NAME}-cli PRIVATE cxx_std_17)
+  add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} natives/generic/image.cc)
 endif()
 
 
@@ -38,10 +90,6 @@ else()
   set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 endif()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-option(WITH_MAGICK "Build the functions that still depend on ImageMagick" OFF)
-
 if (WITH_MAGICK)
   find_package(ImageMagick COMPONENTS Magick++ MagickCore)
   add_definitions(-DMAGICK_ENABLED)
@@ -51,10 +99,28 @@ if (WITH_MAGICK)
   target_link_libraries(${PROJECT_NAME} ${ImageMagick_LIBRARIES})
 endif()
 
+if (WITH_ZXING)
+  pkg_check_modules(ZXing zxing)
+  add_definitions(-DZXING_ENABLED)
+  include_directories(${ZXing_INCLUDE_DIRS})
+  link_directories(${ZXing_LIBRARY_DIRS})
+  target_link_libraries(${PROJECT_NAME} ${ZXing_LDFLAGS})
+endif()
+
+find_package(Fontconfig REQUIRED)
+include_directories(${Fontconfig_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${Fontconfig_LIBRARIES})
+
 pkg_check_modules(VIPS REQUIRED vips-cpp)
 include_directories(${VIPS_INCLUDE_DIRS})
 link_directories(${VIPS_LIBRARY_DIRS})
 target_link_libraries(${PROJECT_NAME} ${VIPS_LDFLAGS})
+
+if (NOT CMAKE_JS_VERSION)
+  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+  FetchContent_MakeAvailable(json)
+  target_link_libraries(${PROJECT_NAME} nlohmann_json::nlohmann_json)
+endif()
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET AND CMAKE_JS_VERSION)
   # Generate node.lib

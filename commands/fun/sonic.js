@@ -1,4 +1,3 @@
-//import wrap from "../../utils/wrap.js";
 import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
@@ -11,7 +10,7 @@ class SonicCommand extends MediaCommand {
   }
 
   static description = "Creates a Sonic speech bubble image";
-  static arguments = ["[text]"];
+  static args = ["[text]"];
 
   static requiresImage = false;
   static requiresText = true;

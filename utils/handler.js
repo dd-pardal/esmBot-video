@@ -1,9 +1,7 @@
-import { paths, commands, messageCommands, info, sounds, categories, aliases as _aliases } from "./collections.js";
+import { paths, commands, messageCommands, info, categories, aliases as _aliases } from "./collections.js";
 import { log } from "./logger.js";
 
-import { readFileSync } from "fs";
-
-const { blacklist } = JSON.parse(readFileSync(new URL("../config/commands.json", import.meta.url)));
+import commandConfig from "../config/commands.json" assert { type: "json" };
 
 let queryValue = 0;
 
@@ -15,7 +13,7 @@ export async function load(client, command, slashReload = false) {
   let commandName = commandArray[commandArray.length - 1].split(".")[0];
   const category = commandArray[commandArray.length - 2];
 
-  if (blacklist.includes(commandName)) {
+  if (commandConfig.blacklist.includes(commandName)) {
     log("warn", `Skipped loading blacklisted command ${command}...`);
     return;
   }
@@ -35,7 +33,7 @@ export async function load(client, command, slashReload = false) {
     category: category,
     description: props.description,
     aliases: props.aliases,
-    params: props.arguments,
+    params: props.args,
     flags: props.flags,
     slashAllowed: props.slashAllowed,
     directAllowed: props.directAllowed,
@@ -53,8 +51,6 @@ export async function load(client, command, slashReload = false) {
   if (slashReload && props.slashAllowed) {
     await send(client);
   }
-
-  if (Object.getPrototypeOf(props).name === "SoundboardCommand") sounds.set(commandName, props.file);
 
   info.set(commandName, commandInfo);
 
@@ -82,7 +78,7 @@ export function update() {
         category: cmdInfo.category,
         description: cmd.description,
         aliases: cmd.aliases,
-        params: cmd.arguments,
+        params: cmd.args,
         flags: cmd.flags,
         slashAllowed: cmd.slashAllowed,
         directAllowed: cmd.directAllowed,

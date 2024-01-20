@@ -6,7 +6,7 @@ class CaptionTwoCommand extends MediaCommand {
   params(url) {
     const newArgs = this.options.text ?? this.args.filter(item => !item.includes(url)).join(" ");
     return {
-      caption: newArgs && newArgs.trim() ? cleanMessage(this.message ?? this.interaction, newArgs) : words.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * words.length + 1)).join(" "),
+      caption: newArgs?.trim() ? cleanMessage(this.message ?? this.interaction, newArgs) : words.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * words.length + 1)).join(" "),
       top: !!this.options.top,
       font: typeof this.options.font === "string" && this.constructor.allowedFonts.includes(this.options.font.toLowerCase()) ? this.options.font.toLowerCase() : "helvetica"
     };
@@ -52,7 +52,7 @@ vstack=shortest=1`
 
   static description = "Adds a me.me caption/tag list to an image";
   static aliases = ["tags2", "meirl", "memecaption", "medotmecaption"];
-  static arguments = ["{text}"];
+  static args = ["{text}"];
 
   static textOptional = true;
   static noText = "You need to provide some text to add a caption!";

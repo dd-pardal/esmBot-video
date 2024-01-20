@@ -1,4 +1,4 @@
-import * as logger from "./logger.js";
+import logger from "./logger.js";
 import fs from "fs";
 import format from "format-duration";
 import { Shoukaku, Connectors } from "shoukaku";
@@ -46,71 +46,81 @@ export async function reload(client) {
   return manager.nodes.size;
 }
 
-export async function play(client, sound, options, music = false) {
+export async function play(client, soundUrl, options) {
   if (!connected) return { content: "I'm not connected to any audio servers!", flags: 64 };
   if (!manager) return { content: "The sound commands are still starting up!", flags: 64 };
   if (!options.guild) return { content: "This command only works in servers!", flags: 64 };
   if (!options.member.voiceState) return { content: "You need to be in a voice channel first!", flags: 64 };
-  if (!options.guild.permissionsOf(client.user.id.toString()).has("CONNECT")) return { content: "I can't join this voice channel!", flags: 64 };
-  const voiceChannel = options.guild.channels.get(options.member.voiceState.channelID) ?? await client.rest.channels.get(options.member.voiceState.channelID).catch(e => logger.warn(`Failed to get a voice channel: ${e}`));
+  if (!options.guild.permissionsOf(client.user.id).has("CONNECT")) return { content: "I can't join this voice channel!", flags: 64 };
+  const voiceChannel = options.guild.channels.get(options.member.voiceState.channelID) ?? await client.rest.channels.get(options.member.voiceState.channelID).catch(e => {
+    logger.warn(`Failed to get a voice channel: ${e}`);
+  });
   if (!voiceChannel) return { content: "I can't join this voice channel! Make sure I have the right permissions.", flags: 64 };
-  if (!voiceChannel.permissionsOf(client.user.id.toString()).has("CONNECT")) return { content: "I don't have permission to join this voice channel!", flags: 64 };
-  if (!music && manager.players.has(options.guild.id)) return { content: "I can't play a sound effect while other audio is playing!", flags: 64 };
-  const node = manager.getNode();
-  if (!music && !nodes.filter(obj => obj.name === node.name)[0].local) {
-    sound = sound.replace(/\.\//, "https://raw.githubusercontent.com/esmBot/esmBot/master/");
-  }
+  if (!voiceChannel.permissionsOf(client.user.id).has("CONNECT")) return { content: "I don't have permission to join this voice channel!", flags: 64 };
+  const node = manager.options.nodeResolver(manager.nodes);
   let response;
   try {
-    response = await node.rest.resolve(sound);
+    response = await node.rest.resolve(soundUrl);
     if (!response) return { content: "🔊 I couldn't get a response from the audio server.", flags: 64 };
-    if (response.loadType === "NO_MATCHES" || response.loadType === "LOAD_FAILED") return { content: "I couldn't find that song!", flags: 64 };
+    if (response.loadType === "empty" || response.loadType === "error") return { content: "I couldn't find that song!", flags: 64 };
   } catch (e) {
     logger.error(e);
     return { content: "🔊 Hmmm, seems that all of the audio servers are down. Try again in a bit.", flags: 64 };
   }
   const oldQueue = queues.get(voiceChannel.guildID);
-  if (!response.tracks || response.tracks.length === 0) return { content: "I couldn't find that song!", flags: 64 };
-  if (process.env.YT_DISABLED === "true" && response.tracks[0].info.sourceName === "youtube") return { content: "YouTube playback is disabled on this instance.", flags: 64 };
-  if (music) {
-    const sortedTracks = response.tracks.map((val) => { return val.track; });
-    const playlistTracks = response.playlistInfo.selectedTrack ? sortedTracks : [sortedTracks[0]];
-    queues.set(voiceChannel.guildID, oldQueue ? [...oldQueue, ...playlistTracks] : playlistTracks);
+  if (!response?.data) return { content: "I couldn't find that song!", flags: 64 };
+  let tracks = [];
+  let info;
+  let playlistInfo;
+  switch (response.loadType) {
+    case "track":
+      info = response.data.info;
+      tracks.push(response.data.encoded);
+      break;
+    case "search":
+      info = response.data[0].info;
+      tracks.push(response.data[0].encoded);
+      break;
+    case "playlist":
+      info = response.data.tracks[0].info;
+      playlistInfo = response.data.info;
+      tracks = response.data.tracks.map((v) => v.encoded);
+      break;
   }
+  queues.set(voiceChannel.guildID, oldQueue ? [...oldQueue, ...tracks] : tracks);
+  if (process.env.YT_DISABLED === "true" && info?.sourceName === "youtube") return { content: "YouTube playback is disabled on this instance.", flags: 64 };
   const playerMeta = players.get(options.guild.id);
   let player;
-  if (node.players.has(voiceChannel.guildID)) {
-    player = node.players.get(voiceChannel.guildID);
+  if (manager.players.has(voiceChannel.guildID)) {
+    player = manager.players.get(voiceChannel.guildID);
   } else if (playerMeta?.player) {
     const storedState = playerMeta?.player?.connection.state;
     if (storedState && storedState === 1) {
       player = playerMeta?.player;
     }
   }
-  const connection = player ?? await node.joinChannel({
+  const connection = player ?? await manager.joinVoiceChannel({
     guildId: voiceChannel.guildID,
     channelId: voiceChannel.id,
     shardId: voiceChannel.guild.shard.id,
     deaf: true
   });
 
-  if (oldQueue?.length && music) {
-    return `Your ${response.playlistInfo.name ? "playlist" : "tune"} \`${response.playlistInfo.name ? response.playlistInfo.name.trim() : (response.tracks[0].info.title !== "" ? response.tracks[0].info.title.trim() : "(blank)")}\` has been added to the queue!`;
-  } else {
-    nextSong(client, options, connection, response.tracks[0].track, response.tracks[0].info, music, voiceChannel, playerMeta?.host ?? options.member.id, playerMeta?.loop ?? false, playerMeta?.shuffle ?? false);
-    return;
+  if (oldQueue?.length) {
+    return `Your ${response.loadType} \`${playlistInfo ? playlistInfo.name.trim() : (info?.title !== "" ? info?.title.trim() : "(blank)")}\` has been added to the queue!`;
   }
+
+  nextSong(client, options, connection, tracks[0], info, voiceChannel, playerMeta?.host ?? options.member.id, playerMeta?.loop ?? false, playerMeta?.shuffle ?? false);
 }
 
-export async function nextSong(client, options, connection, track, info, music, voiceChannel, host, loop = false, shuffle = false, lastTrack = null) {
+export async function nextSong(client, options, connection, track, info, voiceChannel, host, loop = false, shuffle = false, lastTrack = null) {
   skipVotes.delete(voiceChannel.guildID);
-  const parts = Math.floor((0 / info.length) * 10);
   let playingMessage;
-  if (music && lastTrack === track && players.has(voiceChannel.guildID)) {
+  if (lastTrack === track && players.has(voiceChannel.guildID)) {
     playingMessage = players.get(voiceChannel.guildID).playMessage;
   } else {
     try {
-      const content = !music ? { content: "🔊 Playing sound..." } : {
+      const content = {
         embeds: [{
           color: 16711680,
           author: {
@@ -134,7 +144,7 @@ export async function nextSong(client, options, connection, track, info, music, 
             value: connection.node?.name ?? "Unknown"
           },
           {
-            name: `${"▬".repeat(parts)}🔘${"▬".repeat(10 - parts)}`,
+            name: `🔘${"▬".repeat(10)}`,
             value: `0:00/${info.isStream ? "∞" : format(info.length)}`
           }]
         }]
@@ -151,24 +161,23 @@ export async function nextSong(client, options, connection, track, info, music, 
           if (!playingMessage) playingMessage = await options.interaction.getOriginal();
         }
       }
-    } catch {
-      // no-op
+    } catch (e) {
+      logger.error(e);
     }
   }
   connection.removeAllListeners("exception");
   connection.removeAllListeners("stuck");
   connection.removeAllListeners("end");
-  connection.setVolume(0.70);
-  connection.playTrack({ track });
-  players.set(voiceChannel.guildID, { player: connection, type: music ? "music" : "sound", host, voiceChannel, originalChannel: options.channel, loop, shuffle, playMessage: playingMessage });
+  await connection.setGlobalVolume(70);
+  await connection.playTrack({ track });
+  players.set(voiceChannel.guildID, { player: connection, type: "music", host, voiceChannel, originalChannel: options.channel, loop, shuffle, playMessage: playingMessage });
   connection.once("exception", (exception) => errHandle(exception, client, connection, playingMessage, voiceChannel, options));
-  connection.on("stuck", () => {
-    const nodeName = manager.getNode().name;
-    connection.move(nodeName);
-    connection.resume();
+  connection.on("stuck", async () => {
+    await connection.movePlayer();
+    await connection.resumePlayer();
   });
   connection.on("end", async (data) => {
-    if (data.reason === "REPLACED") return;
+    if (data.reason === "replaced") return;
     let queue = queues.get(voiceChannel.guildID);
     const player = players.get(voiceChannel.guildID);
     if (player && process.env.STAYVC === "true") {
@@ -193,7 +202,7 @@ export async function nextSong(client, options, connection, track, info, music, 
     queues.set(voiceChannel.guildID, newQueue);
     if (newQueue.length !== 0) {
       const newTrack = await connection.node.rest.decode(newQueue[0]);
-      nextSong(client, options, connection, newQueue[0], newTrack, music, voiceChannel, host, player.loop, player.shuffle, track);
+      nextSong(client, options, connection, newQueue[0], newTrack.info, voiceChannel, host, player.loop, player.shuffle, track);
       try {
         if (options.type === "classic") {
           if (newQueue[0] !== track && playingMessage.channel.messages.has(playingMessage.id)) await playingMessage.delete();
@@ -204,7 +213,7 @@ export async function nextSong(client, options, connection, track, info, music, 
       }
     } else if (process.env.STAYVC !== "true") {
       await setTimeout(400);
-      connection.node.leaveChannel(voiceChannel.guildID);
+      await manager.leaveVoiceChannel(voiceChannel.guildID);
       players.delete(voiceChannel.guildID);
       queues.delete(voiceChannel.guildID);
       skipVotes.delete(voiceChannel.guildID);
@@ -236,7 +245,7 @@ export async function nextSong(client, options, connection, track, info, music, 
 
 export async function errHandle(exception, client, connection, playingMessage, voiceChannel, options, closed) {
   try {
-    if (playingMessage.channel.messages.has(playingMessage.id)) await playingMessage.delete();
+    if (playingMessage?.channel.messages.has(playingMessage.id)) await playingMessage.delete();
     const playMessage = players.get(voiceChannel.guildID).playMessage;
     if (playMessage.channel.messages.has(playMessage.id)) await playMessage.delete();
   } catch {
