@@ -1,3 +1,4 @@
+import { Constants } from "oceanic.js";
 import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
@@ -42,10 +43,10 @@ overlay=shortest=1`
     this.flags.push({
       name: "case",
       description: "Make the meme text case-sensitive (allows for lowercase text)",
-      type: 5
+      type: Constants.ApplicationCommandOptionTypes.BOOLEAN
     }, {
       name: "font",
-      type: 3,
+      type: Constants.ApplicationCommandOptionTypes.STRING,
       choices: (() => {
         const array = [];
         for (const font of this.allowedFonts) {

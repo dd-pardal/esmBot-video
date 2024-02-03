@@ -1,10 +1,11 @@
+import { Constants } from "oceanic.js";
 import MediaCommand from "../../classes/mediaCommand.js";
 
 class JPEGCommand extends MediaCommand {
   params() {
     const quality = parseInt(this.options.quality ?? this.args[0]);
     return {
-      quality: isNaN(quality) ? 1 : Math.max(1, Math.min(quality, 100))
+      quality: Number.isNaN(quality) ? 1 : Math.max(1, Math.min(quality, 100))
     };
   }
 
@@ -12,7 +13,7 @@ class JPEGCommand extends MediaCommand {
     super.init();
     this.flags.push({
       name: "quality",
-      type: 4,
+      type: Constants.ApplicationCommandOptionTypes.INTEGER,
       description: "Set the JPEG quality (default: 1)",
       min_value: 1,
       max_value: 100

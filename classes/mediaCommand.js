@@ -5,6 +5,7 @@ import { runningCommands } from "../utils/collections.js";
 import { clean, random } from "../utils/misc.js";
 import { selectedImages } from "../utils/collections.js";
 import messages from "../config/messages.json" assert { type: "json" };
+import { Constants } from "oceanic.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { readFile, rm, stat } from "fs/promises";
@@ -51,6 +52,7 @@ class MediaCommand extends Command {
 
     if (this.type === "application") await this.acknowledge();
 
+    let needsSpoiler = false;
     if (this.constructor.requiresImage) {
       try {
         const selection = selectedImages.get(this.author.id);
@@ -58,6 +60,7 @@ class MediaCommand extends Command {
           if (e.name === "AbortError") return { type: "timeout" };
           throw e
         });
+        needsSpoiler = media.spoiler;
         if (selection) selectedImages.delete(this.author.id);
         if (media === undefined) {
           runningCommands.delete(this.author.id);
@@ -77,6 +80,8 @@ class MediaCommand extends Command {
         throw e;
       }
     }
+
+    if ("spoiler" in this.options) needsSpoiler = this.options.spoiler;
 
     if (this.constructor.requiresText) {
       const text = this.options.text ?? this.args.join(" ").trim();
@@ -211,7 +216,7 @@ class MediaCommand extends Command {
         output ??= {
           text,
           contents: await readFile(outputFilename),
-          name: `${this.constructor.command}.${format}`
+          name: `${needsSpoiler ? "SPOILER_" : ""}${this.constructor.command}.${format}`
         };
         cleanup();
         return output;
@@ -260,7 +265,7 @@ class MediaCommand extends Command {
           if (type === "text") return `\`\`\`\n${await clean(buffer.toString("utf8"))}\n\`\`\``;
           return {
             contents: buffer,
-            name: `${this.constructor.command}.${type}`
+            name: `${needsSpoiler ? "SPOILER_" : ""}${this.constructor.command}.${type}`
           };
         } catch (e) {
           if (e === "Request ended prematurely due to a closed connection") return "This image job couldn't be completed because the server it was running on went down. Try running your command again.";
@@ -290,7 +295,7 @@ class MediaCommand extends Command {
     if (this.requiresText || this.textOptional) {
       this.flags.push({
         name: "text",
-        type: 3,
+        type: Constants.ApplicationCommandOptionTypes.STRING,
         description: "The text to put on the image",
         required: !this.textOptional
       });
@@ -298,18 +303,22 @@ class MediaCommand extends Command {
     if (this.requiresImage) {
       this.flags.push({
         name: this.acceptsVideo ? "media" : "image",
-        type: 11,
+        type: Constants.ApplicationCommandOptionTypes.ATTACHMENT,
         description: `An image/GIF${this.acceptsVideo ? "/video" : ""} attachment`
       }, {
         name: "link",
-        type: 3,
+        type: Constants.ApplicationCommandOptionTypes.STRING,
         description: `An image/GIF${this.acceptsVideo ? "/video" : ""} URL`
       });
     }
     this.flags.push({
       name: "format",
-      type: 3,
+      type: Constants.ApplicationCommandOptionTypes.STRING,
       description: "The output format (png, jpeg, gif, webm, mp4)"
+    }, {
+      name: "spoiler",
+      type: Constants.ApplicationCommandOptionTypes.BOOLEAN,
+      description: "Attempt to send output as a spoiler"
     });
     return this;
   }

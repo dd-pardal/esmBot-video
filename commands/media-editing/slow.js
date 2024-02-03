@@ -1,3 +1,4 @@
+import { Constants } from "oceanic.js";
 import MediaCommand from "../../classes/mediaCommand.js";
 
 class SlowCommand extends MediaCommand {
@@ -5,7 +6,7 @@ class SlowCommand extends MediaCommand {
     const speed = parseInt(this.options.multiplier ?? this.args[0]);
     return {
       slow: true,
-      speed: isNaN(speed) ? 2 : speed
+      speed: Number.isNaN(speed) ? 2 : speed
     };
   }
 
@@ -13,7 +14,7 @@ class SlowCommand extends MediaCommand {
     super.init();
     this.flags.push({
       name: "multiplier",
-      type: 4,
+      type: Constants.ApplicationCommandOptionTypes.INTEGER,
       description: "Set the speed multiplier (default: 2)",
       min_value: 1
     });

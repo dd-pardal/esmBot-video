@@ -1,3 +1,4 @@
+import { Constants } from "oceanic.js";
 import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 const words = ["me irl", "dank", "follow my second account @esmBot_", "2016", "meme", "wholesome", "reddit", "instagram", "twitter", "facebook", "fortnite", "minecraft", "relatable", "gold", "funny", "template", "hilarious", "memes", "deep fried", "2020", "leafy", "pewdiepie"];
@@ -34,10 +35,10 @@ vstack=shortest=1`
     this.flags.push({
       name: "top",
       description: "Put the caption on the top of an image instead of the bottom",
-      type: 5
+      type: Constants.ApplicationCommandOptionTypes.BOOLEAN
     }, {
       name: "font",
-      type: 3,
+      type: Constants.ApplicationCommandOptionTypes.STRING,
       choices: (() => {
         const array = [];
         for (const font of this.allowedFonts) {

@@ -1,4 +1,4 @@
-import { PrivateChannel, TextableChannel, ThreadChannel } from "oceanic.js";
+import { AttachmentFlags, PrivateChannel, TextableChannel, ThreadChannel } from "oceanic.js";
 import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
 
 const tenorURLs = [
@@ -28,6 +28,11 @@ const combined = [...tenorURLs, ...giphyURLs, ...giphyMediaURLs, ...imgurURLs];
 
 const imageFormats = ["image/jpeg", "image/png", "image/webp", "image/gif", "large"];
 
+/**
+ * @param {string} image
+ * @param {boolean} extraReturnTypes
+ * @param {boolean} video
+ */
 export async function getType(image, extraReturnTypes, video) {
   if (!(image.startsWith("http://") || image.startsWith("https://"))) {
     const imageType = await fileTypeFromFile(image);
@@ -47,8 +52,15 @@ export async function getType(image, extraReturnTypes, video) {
       method: "HEAD"
     });
     clearTimeout(timeout);
-    const size = imageRequest.headers.has("content-range") ? imageRequest.headers.get("content-range").split("/")[1] : imageRequest.headers.get("content-length");
-    if (parseInt(size) > 41943040 && extraReturnTypes && !video) { // 40 MB
+    let size = 0;
+    if (imageRequest.headers.has("content-range")) {
+      const contentRange = imageRequest.headers.get("content-range");
+      if (contentRange) size = parseInt(contentRange.split("/")[1]);
+    } else if (imageRequest.headers.has("content-length")) {
+      const contentLength = imageRequest.headers.get("content-length");
+      if (contentLength) size = parseInt(contentLength);
+    }
+    if (size > 41943040 && extraReturnTypes) { // 40 MB
       type = "large";
       return type;
     }
@@ -85,8 +97,19 @@ export async function getType(image, extraReturnTypes, video) {
   return type;
 }
 
-// gets the proper image paths
-const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, type = null, link = false) => {
+/**
+ * Gets proper media paths.
+ * @param {string} image
+ * @param {string} image2
+ * @param {boolean} video
+ * @param {boolean} [spoiler]
+ * @param {boolean} [extraReturnTypes]
+ * @param {boolean} [gifv]
+ * @param {string | null} [type]
+ * @param {boolean} [link]
+ * @returns {Promise<{ path: string; type?: string; url: string; name: string; gifv: boolean; spoiler: boolean; } | undefined>}
+ */
+const getMedia = async (image, image2, video, spoiler = false, extraReturnTypes = false, gifv = false, type = null, link = false) => {
   try {
     const fileNameSplit = new URL(image).pathname.split("/");
     const fileName = fileNameSplit[fileNameSplit.length - 1];
@@ -97,7 +120,8 @@ const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, ty
       url: image2,
       path: image,
       name: fileNameNoExtension,
-      gifv
+      gifv,
+      spoiler  
     };
     if (!video && gifv) {
       payload.mediaType = "image";
@@ -110,15 +134,13 @@ const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, ty
             id = image2.split("-").pop();
           } else if (image2.endsWith(".gif")) {
             const redirect = (await fetch(image2, { method: "HEAD", redirect: "manual" })).headers.get("location");
-            id = redirect.split("-").pop();
+            id = redirect?.split("-").pop();
           }
           const data = await fetch(`https://tenor.googleapis.com/v2/posts?ids=${id}&media_filter=gif&limit=1&client_key=esmBot%20${process.env.ESMBOT_VER}&key=${process.env.TENOR}`);
           if (data.status === 429) {
             if (extraReturnTypes) {
               payload.type = "tenorlimit";
               return payload;
-            } else {
-              return;
             }
           }
           const json = await data.json();
@@ -157,6 +179,14 @@ const getMedia = async (image, image2, video, extraReturnTypes, gifv = false, ty
   }
 };
 
+/**
+ * Checks a single message for stickers, videos, or images
+ * @param {import("oceanic.js").Message} message 
+ * @param {boolean} extraReturnTypes 
+ * @param {boolean} video 
+ * @param {boolean} sticker 
+ * @returns {Promise<{ path: string; type?: string; url: string; name: string; } | import("oceanic.js").StickerItem | boolean | undefined>}
+ */
 const checkMessageForMedia = async (message, extraReturnTypes, video, sticker) => {
   let type;
   if (sticker && message.stickerItems) {
@@ -164,50 +194,65 @@ const checkMessageForMedia = async (message, extraReturnTypes, video, sticker) =
   } else {
     // first check the embeds
     if (message.embeds.length !== 0) {
+      let hasSpoiler = false;
+      if (message.embeds[0].url && message.content) {
+        const spoilerRegex = /\|\|.*https?:\/\/.*\|\|/s;
+        hasSpoiler = spoilerRegex.test(message.content);
+      }
       // embeds can vary in types, we check for tenor gifs first
-      if (message.embeds[0].type === "gifv") {
-        type = await getMedia(message.embeds[0].video.url, message.embeds[0].url, video, extraReturnTypes, true);
-        // then we check for other image types
+      if (message.embeds[0].type === "gifv" && message.embeds[0].video?.url && message.embeds[0].url) {
+        type = await getMedia(message.embeds[0].video.url, message.embeds[0].url, video, hasSpoiler, extraReturnTypes, true);
+        // then we check for videos
       } else if (message.embeds[0].type === "video" && video) {
-        type = await getMedia(message.embeds[0].video.proxyURL, message.embeds[0].url, video, extraReturnTypes);
+        type = await getMedia(message.embeds[0].video.proxyURL ?? message.embeds[0].video.url, message.embeds[0].url, video, hasSpoiler, extraReturnTypes);
+        // then we check for other image types
       } else if ((message.embeds[0].type === "video" || message.embeds[0].type === "image") && message.embeds[0].thumbnail) {
-        type = await getMedia(message.embeds[0].thumbnail.proxyURL, message.embeds[0].thumbnail.url, video, extraReturnTypes);
+        type = await getMedia(message.embeds[0].thumbnail.proxyURL ?? message.embeds[0].thumbnail.url, message.embeds[0].thumbnail.url, video, hasSpoiler, extraReturnTypes);
         // finally we check both possible image fields for "generic" embeds
       } else if (message.embeds[0].type === "rich" || message.embeds[0].type === "article") {
         if (message.embeds[0].thumbnail) {
-          type = await getMedia(message.embeds[0].thumbnail.proxyURL, message.embeds[0].thumbnail.url, video, extraReturnTypes);
+          type = await getMedia(message.embeds[0].thumbnail.proxyURL ?? message.embeds[0].thumbnail.url, message.embeds[0].thumbnail.url, video, hasSpoiler, extraReturnTypes);
         } else if (message.embeds[0].image) {
-          type = await getMedia(message.embeds[0].image.proxyURL, message.embeds[0].image.url, video, extraReturnTypes);
+          type = await getMedia(message.embeds[0].image.proxyURL ?? message.embeds[0].image.url, message.embeds[0].image.url, video, hasSpoiler, extraReturnTypes);
         }
       }
       // then check the attachments
-    } else if (message.attachments.size !== 0 && message.attachments.first().width) {
-      type = await getMedia(message.attachments.first().proxyURL, message.attachments.first().url, video);
+    } else if (message.attachments.size !== 0) {
+      const firstAttachment = message.attachments.first();
+      console.log(firstAttachment)
+      if (firstAttachment?.width) type = await getMedia(firstAttachment.proxyURL, firstAttachment.url, video, !!(firstAttachment.flags & AttachmentFlags.IS_SPOILER));
     }
   }
   // if the return value exists then return it
   return type ?? false;
 };
 
-// this checks for the latest message containing an image and returns the url of the image
+/**
+ * Checks for the latest message containing an image and returns the URL of the image.
+ * @param {import("oceanic.js").Client} client
+ * @param {import("oceanic.js").Message} cmdMessage
+ * @param {import("oceanic.js").CommandInteraction} interaction
+ * @param {{ image: string; link: any; }} options
+ * @returns {Promise<{ path: string; type?: string; url: string; name: string; } | import("oceanic.js").StickerItem | boolean | undefined>}
+ */
 export default async (client, cmdMessage, interaction, options, extraReturnTypes = false, video = false, sticker = false, singleMessage = false) => {
   // we start by determining whether or not we're dealing with an interaction or a message
-  if (interaction) {
+  if (interaction && options) {
     // we can get a raw attachment or a URL in the interaction itself
-    if (options) {
-      if (options.image) {
-        const attachment = interaction.data.resolved.attachments.get(options.image);
-        const result = await getMedia(attachment.proxyURL, attachment.url, video, extraReturnTypes, false, attachment.contentType);
-        if (result !== false) return result;
-      } else if (options.link) {
-        const result = await getMedia(options.link, options.link, video, extraReturnTypes, false, null, true);
-        if (result !== false) return result;
+    if (options.image) {
+      const attachment = interaction.data.resolved.attachments.get(options.image);
+      if (attachment) {
+        const result = await getMedia(attachment.proxyURL, attachment.url, video, !!(attachment.flags & AttachmentFlags.IS_SPOILER), !!attachment.contentType);
+        if (result) return result;
       }
+    } else if (options.link) {
+      const result = await getMedia(options.link, options.link, video, false, extraReturnTypes, false, null, true);
+      if (result) return result;
     }
   }
   if (cmdMessage) {
     // check if the message is a reply to another message
-    if (cmdMessage.messageReference && !singleMessage) {
+    if (cmdMessage.messageReference?.channelID && cmdMessage.messageReference.messageID && !singleMessage) {
       const replyMessage = await client.rest.channels.getMessage(cmdMessage.messageReference.channelID, cmdMessage.messageReference.messageID).catch(() => undefined);
       if (replyMessage) {
         const replyResult = await checkMessageForMedia(replyMessage, extraReturnTypes, video, sticker);
@@ -223,7 +268,8 @@ export default async (client, cmdMessage, interaction, options, extraReturnTypes
     const channel = (interaction ? interaction : cmdMessage).channel ?? await client.rest.channels.get((interaction ? interaction : cmdMessage).channelID);
     if (!(channel instanceof TextableChannel) && !(channel instanceof ThreadChannel) && !(channel instanceof PrivateChannel)) return;
     const perms = (channel instanceof TextableChannel || channel instanceof ThreadChannel) ? channel.permissionsOf?.(client.user.id) : null;
-    if (perms && !perms.has("VIEW_CHANNEL")) return;    const messages = await channel.getMessages();
+    if (perms && !perms.has("VIEW_CHANNEL")) return;
+    const messages = await channel.getMessages();
     // iterate over each message
     for (const message of messages) {
       const result = await checkMessageForMedia(message, extraReturnTypes, video, sticker);

@@ -1,3 +1,4 @@
+import { Constants } from "oceanic.js";
 import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
@@ -32,7 +33,7 @@ overlay=y=${params.pos}*main_h:shortest=1`
     super.init();
     this.flags.push({
       name: "position",
-      type: 10,
+      type: Constants.ApplicationCommandOptionTypes.NUMBER,
       description: "Set the position of the caption as a decimal (0.0 is top, 1.0 is bottom, default is 0.5)",
       min_value: 0,
       max_value: 1

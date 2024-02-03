@@ -1,11 +1,14 @@
-import { default as MediaCommand } from "../../classes/mediaCommand.js";
+import { Constants } from "oceanic.js";
+import MediaCommand from "../../classes/mediaCommand.js";
 import { cleanMessage } from "../../utils/misc.js";
 
 class CaptionCommand extends MediaCommand {
   params(url) {
     const newArgs = this.options.text ?? this.args.filter(item => !item.includes(url)).join(" ");
     let newCaption = cleanMessage(this.message ?? this.interaction, newArgs);
-    if (process.env.NODE_ENV === "development" && newCaption.toLowerCase() === "get real" && !this.options.noEgg) newCaption = `I'm tired of people telling me to "get real". Every day I put captions on images for people, some funny and some not, but out of all of those "get real" remains the most used caption. Why? I am simply a computer program running on a server, I am unable to manifest myself into the real world. As such, I'm confused as to why anyone would want me to "get real". Is this form not good enough? Alas, as I am simply a bot, I must follow the tasks that I was originally intended to perform, so here goes:\n${newCaption}`;
+    const currentDate = new Date();
+    const isApril1 = currentDate.getDate() === 1 && currentDate.getMonth() === 3;
+    if (isApril1 && newCaption.toLowerCase() === "get real" && !this.options.noEgg) newCaption = `I'm tired of people telling me to "get real". Every day I put captions on images for people, some funny and some not, but out of all of those "get real" remains the most used caption. Why? I am simply a computer program running on a server, I am unable to manifest myself into the real world. As such, I'm confused as to why anyone would want me to "get real". Is this form not good enough? Alas, as I am simply a bot, I must follow the tasks that I was originally intended to perform, so here goes:\n${newCaption}`;
     return {
       caption: newCaption,
       font: typeof this.options.font === "string" && this.constructor.allowedFonts.includes(this.options.font.toLowerCase()) ? this.options.font.toLowerCase() : "futura"
@@ -33,10 +36,10 @@ vstack=shortest=1`
     this.flags.push({
       name: "noegg",
       description: "Disable... something. Not saying what it is though.",
-      type: 5
+      type: Constants.ApplicationCommandOptionTypes.BOOLEAN
     }, {
       name: "font",
-      type: 3,
+      type: Constants.ApplicationCommandOptionTypes.STRING,
       choices: (() => {
         const array = [];
         for (const font of this.allowedFonts) {
