@@ -219,7 +219,6 @@ const checkMessageForMedia = async (message, extraReturnTypes, video, sticker) =
       // then check the attachments
     } else if (message.attachments.size !== 0) {
       const firstAttachment = message.attachments.first();
-      console.log(firstAttachment)
       if (firstAttachment?.width) type = await getMedia(firstAttachment.proxyURL, firstAttachment.url, video, !!(firstAttachment.flags & AttachmentFlags.IS_SPOILER));
     }
   }
